@@ -1,0 +1,259 @@
+/* Custom styles for CleverCupid */
+
+/* General styles */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Product card hover effect */
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Product image container */
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+
+/* Category card styles */
+.category-card {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.category-card img {
+    height: 150px;
+    object-fit: cover;
+}
+
+/* Cart quantity input */
+.quantity-input {
+    width: 70px;
+    text-align: center;
+}
+
+/* Profile avatar */
+.profile-avatar {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+}
+
+/* Custom button styles */
+.btn-outline-primary:hover {
+    color: #fff;
+}
+
+/* Footer styles */
+footer {
+    margin-top: auto;
+}
+
+/* Hero section */
+.hero {
+    background-size: cover;
+    background-position: center;
+    color: white;
+    padding: 100px 0;
+    position: relative;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+}
+
+/* Price badge */
+.price-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+/* Stock status */
+.stock-status {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+}
+
+.in-stock {
+    background-color: #28a745;
+    color: white;
+}
+
+.out-of-stock {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Search bar */
+.search-form {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+/* Loading spinner */
+.spinner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card-img-top {
+        height: 150px;
+    }
+    
+    .hero {
+        padding: 50px 0;
+    }
+    
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+    }
+}
+
+/* Custom form styles */
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Order status badges */
+.badge-pending {
+    background-color: #ffc107;
+}
+
+.badge-processing {
+    background-color: #17a2b8;
+}
+
+.badge-shipped {
+    background-color: #007bff;
+}
+
+.badge-delivered {
+    background-color: #28a745;
+}
+
+.badge-cancelled {
+    background-color: #dc3545;
+}
+
+/* Cart badge animation */
+@keyframes cartBadgePulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.cart-badge {
+    animation: cartBadgePulse 1s ease-in-out;
+}
+
+/* Toast notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+}
+
+.toast {
+    min-width: 250px;
+}
+
+/* Checkout progress */
+.checkout-progress {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.progress-step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+}
+
+.progress-step::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background-color: #dee2e6;
+}
+
+.progress-step.active::after {
+    background-color: #007bff;
+}
+
+.progress-step:last-child::after {
+    display: none;
+}
+
+/* Product gallery */
+.product-gallery {
+    position: relative;
+}
+
+.gallery-thumb {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.gallery-thumb:hover,
+.gallery-thumb.active {
+    opacity: 1;
+} 

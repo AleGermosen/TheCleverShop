@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load store_extras %}
+
+{% block title %}Shopping Cart - CleverCupid{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Shopping Cart</h1>
+
+{% if cart_items %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th>Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in cart_items %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if item.product.image %}
+                                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="img-thumbnail me-3" style="width: 50px;">
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-0">{{ item.product.name }}</h6>
+                                            <small class="text-muted">{{ item.product.category.name }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>${{ item.product.price }}</td>
+                                <td>
+                                    <div class="input-group" style="width: 130px;">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm quantity-btn" data-item-id="{{ item.id }}" data-action="decrease">-</button>
+                                        <input type="number" class="form-control form-control-sm text-center quantity-input" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" data-item-id="{{ item.id }}">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm quantity-btn" data-item-id="{{ item.id }}" data-action="increase">+</button>
+                                    </div>
+                                </td>
+                                <td>${{ item.total_price }}</td>
+                                <td>
+                                    <form method="post" action="{% url 'remove_from_cart' item.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <a href="{% url 'product_list' %}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> Continue Shopping
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Order Summary</h5>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Subtotal:</span>
+                    <span>${{ cart_total }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Shipping:</span>
+                    <span>{% if cart_total >= 50 %}Free{% else %}$5.00{% endif %}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Tax (10%):</span>
+                    <span>${{ tax_amount }}</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-3">
+                    <strong>Total:</strong>
+                    <strong>${{ cart_total_with_shipping }}</strong>
+                </div>
+                <a href="{% url 'checkout' %}" class="btn btn-primary w-100">
+                    Proceed to Checkout
+                </a>
+            </div>
+        </div>
+
+        {% if cart_total < 50 %}
+        <div class="alert alert-info mt-3">
+            <i class="bi bi-info-circle"></i>
+            Add ${{ 50|sub:cart_total }} more to your cart to get free shipping!
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-cart3 display-1 text-muted"></i>
+    <h3 class="mt-3">Your cart is empty</h3>
+    <p class="text-muted">Looks like you haven't added any items to your cart yet.</p>
+    <a href="{% url 'product_list' %}" class="btn btn-primary mt-3">
+        Start Shopping
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle quantity buttons
+    document.querySelectorAll('.quantity-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.dataset.itemId;
+            const action = this.dataset.action;
+            const input = this.parentElement.querySelector('.quantity-input');
+            updateQuantity(itemId, action, input);
+        });
+    });
+
+    // Handle quantity input changes
+    document.querySelectorAll('.quantity-input').forEach(input => {
+        input.addEventListener('change', function() {
+            const itemId = this.dataset.itemId;
+            updateQuantity(itemId, 'set', this, this.value);
+        });
+    });
+});
+
+function updateQuantity(itemId, action, input, value = null) {
+    let newValue = parseInt(input.value);
+
+    if (action === 'increase') {
+        newValue = Math.min(newValue + 1, parseInt(input.max));
+    } else if (action === 'decrease') {
+        newValue = Math.max(newValue - 1, 1);
+    } else if (action === 'set') {
+        newValue = Math.max(1, Math.min(parseInt(value), parseInt(input.max)));
+    }
+
+    if (newValue !== parseInt(input.value)) {
+        input.value = newValue;
+        fetch(`/cart/update/${itemId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                quantity: newValue
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        });
+    }
+}
+</script>
+{% endblock %} 

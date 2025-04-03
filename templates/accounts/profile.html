@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ user.username }}'s Profile{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Profile Sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if user.profile.avatar %}
+                        <img src="{{ user.profile.avatar.url }}" class="rounded-circle mb-3" width="150" height="150" alt="{{ user.username }}">
+                    {% else %}
+                        <div class="bg-light rounded-circle mx-auto mb-3" style="width: 150px; height: 150px; line-height: 150px;">
+                            <i class="fas fa-user fa-4x text-secondary"></i>
+                        </div>
+                    {% endif %}
+                    <h4>{{ user.get_full_name|default:user.username }}</h4>
+                    <p class="text-muted">Member since {{ user.date_joined|date }}</p>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'accounts:profile' %}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-user me-2"></i> Profile
+                    </a>
+                    <a href="{% url 'accounts:order_history' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-shopping-bag me-2"></i> Orders
+                    </a>
+                    <a href="{% url 'account_email' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-envelope me-2"></i> Email Settings
+                    </a>
+                    <a href="{% url 'account_change_password' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-lock me-2"></i> Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Content -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Profile Information</h4>
+                    <a href="{% url 'accounts:profile_edit' %}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> Edit Profile
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Personal Information</h5>
+                            <table class="table">
+                                <tr>
+                                    <th>Username:</th>
+                                    <td>{{ user.username }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Full Name:</th>
+                                    <td>{{ user.get_full_name|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Email:</th>
+                                    <td>{{ user.email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Phone:</th>
+                                    <td>{{ user.profile.phone_number|default:"-" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Additional Information</h5>
+                            <table class="table">
+                                <tr>
+                                    <th>Birth Date:</th>
+                                    <td>{{ user.profile.birth_date|date|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Address:</th>
+                                    <td>{{ user.profile.address|default:"-" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if user.profile.bio %}
+                        <div class="mb-4">
+                            <h5>Bio</h5>
+                            <p>{{ user.profile.bio }}</p>
+                        </div>
+                    {% endif %}
+
+                    <!-- Recent Orders -->
+                    <div>
+                        <h5>Recent Orders</h5>
+                        {% with recent_orders=user.order_set.all|slice:":3" %}
+                            {% if recent_orders %}
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Order ID</th>
+                                                <th>Date</th>
+                                                <th>Status</th>
+                                                <th>Total</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for order in recent_orders %}
+                                                <tr>
+                                                    <td>#{{ order.id }}</td>
+                                                    <td>{{ order.created_at|date }}</td>
+                                                    <td>
+                                                        <span class="badge bg-{% if order.status == 'delivered' %}success{% elif order.status == 'cancelled' %}danger{% else %}info{% endif %}">
+                                                            {{ order.status|title }}
+                                                        </span>
+                                                    </td>
+                                                    <td>${{ order.total_amount }}</td>
+                                                    <td>
+                                                        <a href="{% url 'accounts:order_detail' order.id %}" class="btn btn-sm btn-outline-primary">
+                                                            View Details
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="text-end">
+                                    <a href="{% url 'accounts:order_history' %}" class="btn btn-link">
+                                        View All Orders <i class="fas fa-arrow-right"></i>
+                                    </a>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No orders yet.</p>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

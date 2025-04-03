@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.name }} - CleverCupid{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Product Images -->
+    <div class="col-md-6">
+        <div class="product-gallery">
+            <div class="main-image mb-3">
+                <img src="{{ product.image.url }}" class="img-fluid rounded" alt="{{ product.name }}" id="mainImage">
+            </div>
+            {% if product.images.all %}
+            <div class="thumbnail-images row g-2">
+                <div class="col-3">
+                    <img src="{{ product.image.url }}" class="img-thumbnail active" alt="{{ product.name }}" onclick="changeImage(this.src)">
+                </div>
+                {% for image in product.images.all %}
+                <div class="col-3">
+                    <img src="{{ image.image.url }}" class="img-thumbnail" alt="{{ product.name }}" onclick="changeImage(this.src)">
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Product Info -->
+    <div class="col-md-6">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'store:home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'store:category_detail' product.category.slug %}">{{ product.category.name }}</a></li>
+                <li class="breadcrumb-item active">{{ product.name }}</li>
+            </ol>
+        </nav>
+
+        <h1 class="mb-3">{{ product.name }}</h1>
+        
+        <div class="mb-3">
+            <span class="h3 text-primary">${{ product.price }}</span>
+            {% if product.old_price %}
+            <span class="text-muted text-decoration-line-through ms-2">${{ product.old_price }}</span>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {% if product.stock > 0 %}
+            <span class="badge bg-success">In Stock</span>
+            <span class="text-muted ms-2">{{ product.stock }} units available</span>
+            {% else %}
+            <span class="badge bg-danger">Out of Stock</span>
+            {% endif %}
+        </div>
+
+        <div class="mb-4">
+            <p>{{ product.description }}</p>
+        </div>
+
+        {% if product.stock > 0 %}
+        <form method="post" action="{% url 'add_to_cart' product.id %}" class="mb-4">
+            {% csrf_token %}
+            <div class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="quantity" class="form-label">Quantity:</label>
+                </div>
+                <div class="col-auto">
+                    <div class="input-group" style="width: 130px;">
+                        <button type="button" class="btn btn-outline-secondary" onclick="decrementQuantity()">-</button>
+                        <input type="number" class="form-control text-center" id="quantity" name="quantity" value="1" min="1" max="{{ product.stock }}">
+                        <button type="button" class="btn btn-outline-secondary" onclick="incrementQuantity()">+</button>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-cart-plus"></i> Add to Cart
+                    </button>
+                </div>
+            </div>
+        </form>
+        {% endif %}
+
+        <!-- Product Details -->
+        <div class="accordion" id="productAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#detailsCollapse">
+                        Product Details
+                    </button>
+                </h2>
+                <div id="detailsCollapse" class="accordion-collapse collapse show" data-bs-parent="#productAccordion">
+                    <div class="accordion-body">
+                        <table class="table">
+                            <tbody>
+                                <tr>
+                                    <th>Category</th>
+                                    <td>{{ product.category.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>SKU</th>
+                                    <td>{{ product.sku }}</td>
+                                </tr>
+                                {% if product.weight %}
+                                <tr>
+                                    <th>Weight</th>
+                                    <td>{{ product.weight }} kg</td>
+                                </tr>
+                                {% endif %}
+                                {% if product.dimensions %}
+                                <tr>
+                                    <th>Dimensions</th>
+                                    <td>{{ product.dimensions }}</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Related Products -->
+{% if related_products %}
+<section class="mt-5">
+    <h2 class="mb-4">Related Products</h2>
+    <div class="row g-4">
+        {% for related in related_products %}
+        <div class="col-md-3">
+            <div class="card product-card h-100">
+                {% if related.image %}
+                <img src="{{ related.image.url }}" class="card-img-top" alt="{{ related.name }}">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ related.name }}</h5>
+                    <p class="card-text">{{ related.description|truncatewords:15 }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="h5 mb-0">${{ related.price }}</span>
+                        {% if related.stock > 0 %}
+                        <span class="badge bg-success">In Stock</span>
+                        {% else %}
+                        <span class="badge bg-danger">Out of Stock</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{% url 'product_detail' related.slug %}" class="btn btn-primary w-100">View Details</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changeImage(src) {
+    document.getElementById('mainImage').src = src;
+    document.querySelectorAll('.img-thumbnail').forEach(thumb => {
+        thumb.classList.remove('active');
+        if (thumb.src === src) {
+            thumb.classList.add('active');
+        }
+    });
+}
+
+function incrementQuantity() {
+    const input = document.getElementById('quantity');
+    const max = parseInt(input.getAttribute('max'));
+    const currentValue = parseInt(input.value);
+    if (currentValue < max) {
+        input.value = currentValue + 1;
+    }
+}
+
+function decrementQuantity() {
+    const input = document.getElementById('quantity');
+    const currentValue = parseInt(input.value);
+    if (currentValue > 1) {
+        input.value = currentValue - 1;
+    }
+}
+</script>
+{% endblock %} 
