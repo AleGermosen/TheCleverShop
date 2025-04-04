@@ -256,4 +256,104 @@ footer {
 .gallery-thumb:hover,
 .gallery-thumb.active {
     opacity: 1;
-} 
+}
+
+/* Simple dropdown styles */
+.dropdown-menu {
+    margin: 0;
+    z-index: 1000;
+}
+
+.dropdown-submenu {
+    position: relative;
+}
+
+.dropdown-submenu > .dropdown-menu {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    margin-top: -0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    z-index: 1001;
+    display: none; /* Hide by default */
+}
+
+/* Show submenu on hover - only on desktop */
+@media (min-width: 992px) {
+    .dropdown-submenu:hover > .dropdown-menu {
+        display: block !important;
+    }
+    
+    /* Also show main dropdown on hover */
+    .nav-item.dropdown:hover > .dropdown-menu {
+        display: block !important;
+    }
+}
+
+/* Override Bootstrap's default behavior */
+.dropdown-menu.show {
+    display: block !important;
+}
+
+/* Mobile adjustments */
+@media (max-width: 991.98px) {
+    .dropdown-submenu > .dropdown-menu {
+        position: static;
+        left: 0;
+        margin-left: 1rem;
+        box-shadow: none;
+        border: none;
+    }
+    
+    .dropdown-item {
+        padding: 0.5rem 1rem;
+    }
+    
+    /* Adjust the dropdown toggle arrow for mobile */
+    .dropdown-item.dropdown-toggle::after {
+        transform: rotate(90deg);
+    }
+}
+
+/* Custom Arrow for dropdowns with submenu */
+.dropdown-item.dropdown-toggle::after {
+    content: "";
+    border-top: 0.3em solid transparent;
+    border-right: 0;
+    border-bottom: 0.3em solid transparent;
+    border-left: 0.3em solid;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Prevent dropdown caret on navbar dropdown toggle */
+.nav-item.dropdown .dropdown-toggle::after {
+    display: inline-block; /* Keep the caret visible */
+}
+
+/* Make sure submenus don't inherit navbar dropdown toggle styling */
+.dropdown-item.dropdown-toggle::after {
+    margin-right: 0;
+    float: right;
+    vertical-align: middle;
+}
+
+/* Hover effects and active state */
+.dropdown-item:hover, 
+.dropdown-item:focus, 
+.dropdown-item.active {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+/* Style for "View All" link */
+.dropdown-item.view-all {
+    font-weight: 500;
+    color: #0d6efd;
+}
+
+.dropdown-item.view-all:hover {
+    background-color: #f8f9fa;
+}

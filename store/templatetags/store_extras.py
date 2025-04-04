@@ -9,4 +9,9 @@ def sub(value, arg):
     try:
         return Decimal(value) - Decimal(arg)
     except (ValueError, TypeError):
-        return '' 
+        return ''
+
+@register.filter
+def get_item(dictionary, key):
+    """Gets an item from a dictionary using key."""
+    return dictionary.get(key, []) 

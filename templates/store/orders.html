@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}My Orders - The Clever Shop{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">My Orders</h1>
+    
+    {% if orders %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Date</th>
+                                        <th>Items</th>
+                                        <th>Total</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in orders %}
+                                    <tr>
+                                        <td>{{ order.order_number }}</td>
+                                        <td>{{ order.created_at|date:"M d, Y" }}</td>
+                                        <td>{{ order.items.count }}</td>
+                                        <td>${{ order.total_amount }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ order.status_color }}">
+                                                {{ order.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'store:order_confirmation' order.id %}" class="btn btn-sm btn-outline-primary">
+                                                View Details
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <p>You don't have any orders yet.</p>
+            <a href="{% url 'store:product_list' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-shop"></i> Start Shopping
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 

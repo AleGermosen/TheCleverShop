@@ -46,7 +46,7 @@
                                 </td>
                                 <td>${{ item.total_price }}</td>
                                 <td>
-                                    <form method="post" action="{% url 'remove_from_cart' item.id %}" class="d-inline">
+                                    <form method="post" action="{% url 'store:remove_from_cart' item.id %}" class="d-inline">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             <i class="bi bi-trash"></i>
@@ -62,7 +62,7 @@
         </div>
 
         <div class="mt-3">
-            <a href="{% url 'product_list' %}" class="btn btn-outline-primary">
+            <a href="{% url 'store:product_list' %}" class="btn btn-outline-primary">
                 <i class="bi bi-arrow-left"></i> Continue Shopping
             </a>
         </div>
@@ -89,7 +89,7 @@
                     <strong>Total:</strong>
                     <strong>${{ cart_total_with_shipping }}</strong>
                 </div>
-                <a href="{% url 'checkout' %}" class="btn btn-primary w-100">
+                <a href="{% url 'store:checkout' %}" class="btn btn-primary w-100">
                     Proceed to Checkout
                 </a>
             </div>
@@ -108,7 +108,7 @@
     <i class="bi bi-cart3 display-1 text-muted"></i>
     <h3 class="mt-3">Your cart is empty</h3>
     <p class="text-muted">Looks like you haven't added any items to your cart yet.</p>
-    <a href="{% url 'product_list' %}" class="btn btn-primary mt-3">
+    <a href="{% url 'store:product_list' %}" class="btn btn-primary mt-3">
         Start Shopping
     </a>
 </div>
@@ -150,7 +150,7 @@ function updateQuantity(itemId, action, input, value = null) {
 
     if (newValue !== parseInt(input.value)) {
         input.value = newValue;
-        fetch(`/cart/update/${itemId}/`, {
+        fetch(`/store/cart/update/${itemId}/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

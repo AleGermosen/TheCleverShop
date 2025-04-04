@@ -34,7 +34,7 @@
                                             </h5>
                                             <p class="text-muted mb-2">{{ item.product.description|truncatewords:20 }}</p>
                                             <div class="d-flex align-items-center">
-                                                <form method="post" action="{% url 'store:cart_add' item.product.id %}" class="me-3">
+                                                <form method="post" action="{% url 'store:add_to_cart' item.product.id %}" class="me-3">
                                                     {% csrf_token %}
                                                     <div class="input-group" style="width: 120px;">
                                                         <button class="btn btn-outline-secondary" type="button" onclick="this.parentNode.querySelector('input[type=number]').stepDown()">
@@ -47,7 +47,7 @@
                                                         </button>
                                                     </div>
                                                 </form>
-                                                <a href="{% url 'store:cart_remove' item.product.id %}" class="btn btn-outline-danger">
+                                                <a href="{% url 'store:remove_from_cart' item.id %}" class="btn btn-outline-danger">
                                                     <i class="fas fa-trash"></i>
                                                 </a>
                                             </div>

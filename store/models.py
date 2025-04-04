@@ -11,6 +11,7 @@ class Category(models.Model):
     slug = models.SlugField(max_length=200, unique=True)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='categories/', blank=True)
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -30,15 +31,26 @@ class Category(models.Model):
     def get_absolute_url(self):
         return reverse('store:category_detail', args=[self.slug])
 
+    @property
+    def is_subcategory(self):
+        return self.parent is not None
+
+    def get_subcategories(self):
+        return self.children.all()
+
+    def get_root_categories(self):
+        return Category.objects.filter(parent=None)
+
 class Product(models.Model):
-    category = models.ForeignKey(Category, related_name='products', on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, related_name='products', on_delete=models.CASCADE, 
+                                help_text="Select either a main category or a subcategory")
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
-    description = models.TextField(blank=True)
+    short_description = models.CharField(max_length=255, blank=True, help_text="Brief description for product listings (max 255 characters)")
+    description = models.TextField(blank=True, help_text="Detailed product description shown on product detail page")
     price = models.DecimalField(max_digits=10, decimal_places=2)
     old_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     stock = models.PositiveIntegerField(default=0)
-    image = models.ImageField(upload_to='products/')
     featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -56,15 +68,44 @@ class Product(models.Model):
 
     def get_absolute_url(self):
         return reverse('store:product_detail', args=[self.slug])
+    
+    @property
+    def image(self):
+        """Return the primary image (first in order) or a placeholder if no images exist"""
+        first_image = self.images.first()
+        if first_image:
+            return first_image.image
+        return None  # Return None when no image is available
+    
+    @property
+    def image_url(self):
+        """Return URL of primary image or placeholder URL if no images exist"""
+        first_image = self.images.first()
+        if first_image and first_image.image:
+            return first_image.image.url
+        return '/static/images/placeholder.jpg'  # Return a placeholder image path
 
     @property
     def is_in_stock(self):
         return self.stock > 0
 
+    @property
+    def get_category_display(self):
+        """Return category display name with parent if it's a subcategory"""
+        if self.category.is_subcategory:
+            return f"{self.category.parent.name} › {self.category.name}"
+        return self.category.name
+
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='products/')
+    order = models.PositiveIntegerField(default=0, blank=False, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order']
+        verbose_name = 'Product Image'
+        verbose_name_plural = 'Product Images'
 
     def __str__(self):
         return f'Image for {self.product.name}'

@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order #{{ order.id }} - Details{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Profile Sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if user.profile.avatar %}
+                        <img src="{{ user.profile.avatar.url }}" class="rounded-circle mb-3" width="150" height="150" alt="{{ user.username }}">
+                    {% else %}
+                        <div class="bg-light rounded-circle mx-auto mb-3" style="width: 150px; height: 150px; line-height: 150px;">
+                            <i class="fas fa-user fa-4x text-secondary"></i>
+                        </div>
+                    {% endif %}
+                    <h4>{{ user.get_full_name|default:user.username }}</h4>
+                    <p class="text-muted">Member since {{ user.date_joined|date }}</p>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'accounts:profile' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-user me-2"></i> Profile
+                    </a>
+                    <a href="{% url 'accounts:order_history' %}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-shopping-bag me-2"></i> Orders
+                    </a>
+                    <a href="{% url 'account_email' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-envelope me-2"></i> Email Settings
+                    </a>
+                    <a href="{% url 'account_change_password' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-lock me-2"></i> Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Detail Content -->
+        <div class="col-md-9">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Order #{{ order.id }}</h4>
+                    <a href="{% url 'accounts:order_history' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Orders
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Order Information</h5>
+                            <table class="table">
+                                <tr>
+                                    <th>Order Date:</th>
+                                    <td>{{ order.created_at|date:"F j, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge bg-{% if order.status == 'delivered' %}success{% elif order.status == 'cancelled' %}danger{% else %}info{% endif %}">
+                                            {{ order.status|title }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Payment Method:</th>
+                                    <td>{{ order.payment_method|default:"Credit Card" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Shipping Information</h5>
+                            <table class="table">
+                                <tr>
+                                    <th>Name:</th>
+                                    <td>{{ order.shipping_name|default:user.get_full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Address:</th>
+                                    <td>{{ order.shipping_address|default:user.profile.address }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Phone:</th>
+                                    <td>{{ order.shipping_phone|default:user.profile.phone_number }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <h5>Order Items</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px">Image</th>
+                                    <th>Product</th>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in order.items.all %}
+                                <tr>
+                                    <td>
+                                        {% if item.product.image %}
+                                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="img-thumbnail" width="50">
+                                        {% else %}
+                                            <div class="bg-light" style="width: 50px; height: 50px;"></div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'store:product_detail' item.product.slug %}">{{ item.product.name }}</a>
+                                    </td>
+                                    <td>${{ item.price }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>${{ item.total_price }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                                    <td>${{ order.subtotal }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="text-end"><strong>Shipping:</strong></td>
+                                    <td>${{ order.shipping_cost|default:"0.00" }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="text-end"><strong>Tax:</strong></td>
+                                    <td>${{ order.tax|default:"0.00" }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="text-end"><strong>Total:</strong></td>
+                                    <td><strong>${{ order.total_amount }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

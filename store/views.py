@@ -5,28 +5,42 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.conf import settings
 from django.db.models import Q
+from django.urls import reverse
 from decimal import Decimal
+import json
 import stripe
 
 from .models import Category, Product, Cart, CartItem, Order, OrderItem
 from .forms import ShippingAddressForm
 
 def home(request):
-    categories = Category.objects.all()
     featured_products = Product.objects.filter(featured=True)[:8]
+    categories = Category.objects.filter(parent=None)
     return render(request, 'store/home.html', {
-        'categories': categories,
-        'featured_products': featured_products
+        'featured_products': featured_products,
+        'categories': categories
     })
 
 def product_list(request):
     products = Product.objects.all()
-    categories = Category.objects.all()
+    root_categories = Category.objects.filter(parent=None)
+    all_categories = Category.objects.all()
+    
+    # If this is a POST request for adding to cart, process it
+    if request.method == 'POST' and 'product_id' in request.POST:
+        product_id = request.POST.get('product_id')
+        return add_to_cart(request, product_id)
     
     # Filter by category
     category_slug = request.GET.get('category')
+    current_category = None
     if category_slug:
-        products = products.filter(category__slug=category_slug)
+        current_category = get_object_or_404(Category, slug=category_slug)
+        # Get products from both the category and all its subcategories
+        categories_to_include = [current_category]
+        subcategories = current_category.get_subcategories()
+        categories_to_include.extend(subcategories)
+        products = products.filter(category__in=categories_to_include)
     
     # Search functionality
     search_query = request.GET.get('q')
@@ -47,15 +61,31 @@ def product_list(request):
     
     return render(request, 'store/product_list.html', {
         'products': products,
-        'categories': categories,
-        'current_category': category_slug,
+        'root_categories': root_categories,
+        'all_categories': all_categories,
+        'current_category': current_category,
         'search_query': search_query,
         'sort_by': sort_by
     })
 
 def product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug)
-    related_products = Product.objects.filter(category=product.category).exclude(id=product.id)[:4]
+    
+    # Find related products - consider both category and parent category relationships
+    if product.category.is_subcategory:
+        # If product is in a subcategory, get products from same subcategory and sibling subcategories
+        related_products = Product.objects.filter(
+            Q(category=product.category) |  # Same subcategory
+            Q(category__parent=product.category.parent)  # Sibling subcategories
+        ).exclude(id=product.id).distinct()[:4]
+    else:
+        # If product is in a main category, get products from same category and its subcategories
+        subcategories = product.category.get_subcategories()
+        categories_to_include = [product.category] + list(subcategories)
+        related_products = Product.objects.filter(
+            category__in=categories_to_include
+        ).exclude(id=product.id)[:4]
+    
     return render(request, 'store/product_detail.html', {
         'product': product,
         'related_products': related_products
@@ -63,9 +93,21 @@ def product_detail(request, slug):
 
 def category_detail(request, slug):
     category = get_object_or_404(Category, slug=slug)
-    products = Product.objects.filter(category=category)
+    subcategories = category.get_subcategories()
+    
+    # If this is a POST request for adding to cart, process it
+    if request.method == 'POST' and 'product_id' in request.POST:
+        product_id = request.POST.get('product_id')
+        return add_to_cart(request, product_id)
+    
+    # Get products from both the category and all its subcategories
+    categories_to_include = [category]
+    categories_to_include.extend(subcategories)
+    products = Product.objects.filter(category__in=categories_to_include)
+    
     return render(request, 'store/category_detail.html', {
         'category': category,
+        'subcategories': subcategories,
         'products': products
     })
 
@@ -108,11 +150,18 @@ def add_to_cart(request, product_id):
         cart_item.quantity += quantity
         cart_item.save()
     
-    return JsonResponse({
-        'success': True,
-        'message': 'Product added to cart',
-        'cart_count': CartItem.objects.filter(cart=cart).count()
-    })
+    messages.success(request, f"{product.name} has been added to your cart.")
+    
+    # If it's an AJAX request, return JSON response
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'message': 'Product added to cart',
+            'cart_count': CartItem.objects.filter(cart=cart).count()
+        })
+    
+    # For normal form submissions, redirect to cart
+    return redirect('store:cart')
 
 @login_required
 @require_POST
@@ -228,7 +277,7 @@ def process_payment(request):
         
         return JsonResponse({
             'success': True,
-            'redirect_url': reverse('order_confirmation', args=[order.id])
+            'redirect_url': reverse('store:order_confirmation', args=[order.id])
         })
         
     except stripe.error.CardError as e:
@@ -254,7 +303,7 @@ def product_search(request):
         products = Product.objects.filter(
             Q(name__icontains=query) |
             Q(description__icontains=query)
-        ).filter(available=True)
+        )
     
     context = {
         'query': query,

@@ -2,22 +2,97 @@
 
 {% block title %}{{ product.name }} - CleverCupid{% endblock %}
 
+{% block extra_css %}
+<style>
+    .product-gallery .main-image {
+        height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background-color: #f8f9fa;
+        border-radius: 0.25rem;
+        position: relative;
+    }
+    
+    .product-gallery .main-image img {
+        max-height: 100%;
+        object-fit: contain;
+        transition: transform 0.3s ease;
+    }
+    
+    .product-gallery .main-image img:hover {
+        transform: scale(1.05);
+    }
+    
+    .thumbnail-images .img-thumbnail {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+    }
+    
+    .thumbnail-images .img-thumbnail.active {
+        border-color: #0d6efd;
+    }
+    
+    .product-description {
+        line-height: 1.7;
+    }
+    
+    .image-nav-button {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: rgba(255, 255, 255, 0.7);
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 2;
+        transition: all 0.2s ease;
+    }
+    
+    .image-nav-button:hover {
+        background-color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .image-nav-button.prev {
+        left: 10px;
+    }
+    
+    .image-nav-button.next {
+        right: 10px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <!-- Product Images -->
     <div class="col-md-6">
         <div class="product-gallery">
             <div class="main-image mb-3">
-                <img src="{{ product.image.url }}" class="img-fluid rounded" alt="{{ product.name }}" id="mainImage">
+                {% if product.images.all %}
+                <button class="image-nav-button prev" onclick="navigateImage('prev')">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                {% endif %}
+                <img src="{{ product.image_url }}" class="img-fluid rounded shadow" alt="{{ product.name }}" id="mainImage">
+                {% if product.images.all %}
+                <button class="image-nav-button next" onclick="navigateImage('next')">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                {% endif %}
             </div>
             {% if product.images.all %}
             <div class="thumbnail-images row g-2">
-                <div class="col-3">
-                    <img src="{{ product.image.url }}" class="img-thumbnail active" alt="{{ product.name }}" onclick="changeImage(this.src)">
-                </div>
                 {% for image in product.images.all %}
                 <div class="col-3">
-                    <img src="{{ image.image.url }}" class="img-thumbnail" alt="{{ product.name }}" onclick="changeImage(this.src)">
+                    <img src="{{ image.image.url }}" class="img-thumbnail {% if forloop.first %}active{% endif %}" alt="{{ product.name }}">
                 </div>
                 {% endfor %}
             </div>
@@ -30,6 +105,9 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'store:home' %}">Home</a></li>
+                {% if product.category.parent %}
+                    <li class="breadcrumb-item"><a href="{% url 'store:category_detail' product.category.parent.slug %}">{{ product.category.parent.name }}</a></li>
+                {% endif %}
                 <li class="breadcrumb-item"><a href="{% url 'store:category_detail' product.category.slug %}">{{ product.category.name }}</a></li>
                 <li class="breadcrumb-item active">{{ product.name }}</li>
             </ol>
@@ -53,12 +131,8 @@
             {% endif %}
         </div>
 
-        <div class="mb-4">
-            <p>{{ product.description }}</p>
-        </div>
-
         {% if product.stock > 0 %}
-        <form method="post" action="{% url 'add_to_cart' product.id %}" class="mb-4">
+        <form method="post" action="{% url 'store:add_to_cart' product.id %}" class="mb-4">
             {% csrf_token %}
             <div class="row g-3 align-items-center">
                 <div class="col-auto">
@@ -80,41 +154,53 @@
         </form>
         {% endif %}
 
-        <!-- Product Details -->
-        <div class="accordion" id="productAccordion">
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#detailsCollapse">
-                        Product Details
-                    </button>
-                </h2>
-                <div id="detailsCollapse" class="accordion-collapse collapse show" data-bs-parent="#productAccordion">
-                    <div class="accordion-body">
-                        <table class="table">
-                            <tbody>
-                                <tr>
-                                    <th>Category</th>
-                                    <td>{{ product.category.name }}</td>
-                                </tr>
-                                <tr>
-                                    <th>SKU</th>
-                                    <td>{{ product.sku }}</td>
-                                </tr>
-                                {% if product.weight %}
-                                <tr>
-                                    <th>Weight</th>
-                                    <td>{{ product.weight }} kg</td>
-                                </tr>
-                                {% endif %}
-                                {% if product.dimensions %}
-                                <tr>
-                                    <th>Dimensions</th>
-                                    <td>{{ product.dimensions }}</td>
-                                </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
+        <!-- Product Information Tabs -->
+        <div class="mb-4">
+            <ul class="nav nav-tabs" id="productTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">Description</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab" aria-controls="details" aria-selected="false">Details</button>
+                </li>
+            </ul>
+            <div class="tab-content p-3 border border-top-0 rounded-bottom" id="productTabsContent">
+                <div class="tab-pane fade show active" id="description" role="tabpanel" aria-labelledby="description-tab">
+                    <div class="product-description">
+                        {{ product.description|linebreaks }}
                     </div>
+                </div>
+                <div class="tab-pane fade" id="details" role="tabpanel" aria-labelledby="details-tab">
+                    <table class="table table-striped mb-0">
+                        <tbody>
+                            <tr>
+                                <th style="width: 30%">Category</th>
+                                <td>
+                                    {% if product.category.parent %}
+                                        {{ product.category.parent.name }} › {{ product.category.name }}
+                                    {% else %}
+                                        {{ product.category.name }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>SKU</th>
+                                <td>{{ product.sku }}</td>
+                            </tr>
+                            {% if product.weight %}
+                            <tr>
+                                <th>Weight</th>
+                                <td>{{ product.weight }} kg</td>
+                            </tr>
+                            {% endif %}
+                            {% if product.dimensions %}
+                            <tr>
+                                <th>Dimensions</th>
+                                <td>{{ product.dimensions }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -134,7 +220,13 @@
                 {% endif %}
                 <div class="card-body">
                     <h5 class="card-title">{{ related.name }}</h5>
-                    <p class="card-text">{{ related.description|truncatewords:15 }}</p>
+                    <p class="card-text">
+                        {% if related.short_description %}
+                            {{ related.short_description }}
+                        {% else %}
+                            {{ related.description|truncatewords:15 }}
+                        {% endif %}
+                    </p>
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="h5 mb-0">${{ related.price }}</span>
                         {% if related.stock > 0 %}
@@ -145,7 +237,7 @@
                     </div>
                 </div>
                 <div class="card-footer bg-transparent border-top-0">
-                    <a href="{% url 'product_detail' related.slug %}" class="btn btn-primary w-100">View Details</a>
+                    <a href="{% url 'store:product_detail' related.slug %}" class="btn btn-primary w-100">View Details</a>
                 </div>
             </div>
         </div>
@@ -157,15 +249,75 @@
 
 {% block extra_js %}
 <script>
-function changeImage(src) {
-    document.getElementById('mainImage').src = src;
-    document.querySelectorAll('.img-thumbnail').forEach(thumb => {
-        thumb.classList.remove('active');
-        if (thumb.src === src) {
-            thumb.classList.add('active');
+// Initialize the image gallery on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Add transition for smooth image changes
+    const mainImage = document.getElementById('mainImage');
+    mainImage.style.transition = 'opacity 0.2s ease';
+});
+
+// Navigate to prev/next image
+function navigateImage(direction) {
+    const thumbnails = document.querySelectorAll('.thumbnail-images img');
+    if (thumbnails.length === 0) return;
+    
+    let currentIndex = -1;
+    
+    // Find the index of the active thumbnail
+    thumbnails.forEach((thumb, index) => {
+        if (thumb.classList.contains('active')) {
+            currentIndex = index;
         }
     });
+    
+    // Calculate the next index
+    if (direction === 'prev') {
+        currentIndex = (currentIndex - 1 + thumbnails.length) % thumbnails.length;
+    } else {
+        currentIndex = (currentIndex + 1) % thumbnails.length;
+    }
+    
+    // Change the main image
+    const nextImageSrc = thumbnails[currentIndex].src;
+    const mainImage = document.getElementById('mainImage');
+    
+    // Fade out
+    mainImage.style.opacity = 0;
+    
+    // Change image and fade in
+    setTimeout(() => {
+        mainImage.src = nextImageSrc;
+        mainImage.style.opacity = 1;
+        
+        // Update active state
+        thumbnails.forEach((thumb, idx) => {
+            thumb.classList.toggle('active', idx === currentIndex);
+        });
+    }, 200);
 }
+
+// Make thumbnails clickable
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.thumbnail-images img').forEach((thumb, index) => {
+        thumb.addEventListener('click', function() {
+            const mainImage = document.getElementById('mainImage');
+            
+            // Fade out
+            mainImage.style.opacity = 0;
+            
+            // Change image and fade in
+            setTimeout(() => {
+                mainImage.src = this.src;
+                mainImage.style.opacity = 1;
+                
+                // Update active state
+                document.querySelectorAll('.thumbnail-images img').forEach((t, idx) => {
+                    t.classList.toggle('active', idx === index);
+                });
+            }, 200);
+        });
+    });
+});
 
 function incrementQuantity() {
     const input = document.getElementById('quantity');

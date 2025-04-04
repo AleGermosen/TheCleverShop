@@ -1,10 +1,20 @@
 {% load static %}
+{% load store_extras %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CleverCupid{% endblock %}</title>
+    <title>{% block title %}The Clever Shop{% endblock %}</title>
+    <style>
+        /* Custom favicon styling */
+        link[rel="icon"] {
+            border-radius: 50%;
+            background-color: white;
+        }
+    </style>
+    <link rel="icon" href="{% static 'img/clevercupid_round.png' %}" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="{% static 'img/clevercupid_round.png' %}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
@@ -14,22 +24,76 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'store:home' %}">CleverCupid</a>
+            <a class="navbar-brand" href="{% url 'store:home' %}">
+                <img src="{% static 'img/clevercupid.png' %}" alt="The Clever Shop Logo" width="30" height="30" class="d-inline-block align-text-top me-2" style="background-color: white; border-radius: 50%; padding: 2px; filter: invert(100%);">
+                The Clever Shop
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'store:home' %}">Home</a>
-                    </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             Categories
                         </a>
                         <ul class="dropdown-menu">
-                            {% for category in categories %}
-                            <li><a class="dropdown-item" href="{% url 'store:category_detail' category.slug %}">{{ category.name }}</a></li>
+                            {% if parent_categories %}
+                            <!-- Featured Category -->
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item dropdown-toggle" href="{% url 'store:category_detail' parent_categories.0.slug %}">
+                                    {{ parent_categories.0.name }}
+                                </a>
+                                <ul class="dropdown-menu">
+                                    {% if categories_with_children|get_item:parent_categories.0 %}
+                                        {% for subcategory in categories_with_children|get_item:parent_categories.0 %}
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'store:category_detail' subcategory.slug %}">
+                                                    {{ subcategory.name }}
+                                                </a>
+                                            </li>
+                                        {% endfor %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item view-all" href="{% url 'store:category_detail' parent_categories.0.slug %}">
+                                                <i class="bi bi-list"></i> View All {{ parent_categories.0.name }}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <!-- Other Categories -->
+                            {% endif %}
+
+                            {% for parent in parent_categories %}
+                                {% if forloop.counter0 > 0 %}  <!-- Skip the first category -->
+                                    {% if categories_with_children|get_item:parent %}
+                                        <li class="dropdown-submenu">
+                                            <a class="dropdown-item dropdown-toggle" href="{% url 'store:category_detail' parent.slug %}">
+                                                {{ parent.name }}
+                                            </a>
+                                            <ul class="dropdown-menu">
+                                                {% for subcategory in categories_with_children|get_item:parent %}
+                                                    <li>
+                                                        <a class="dropdown-item" href="{% url 'store:category_detail' subcategory.slug %}">
+                                                            {{ subcategory.name }}
+                                                        </a>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </li>
+                                    {% else %}
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'store:category_detail' parent.slug %}">
+                                                {{ parent.name }}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    {% if not forloop.last %}
+                                        <li><hr class="dropdown-divider"></li>
+                                    {% endif %}
+                                {% endif %}
                             {% endfor %}
                         </ul>
                     </li>
@@ -47,7 +111,7 @@
                             </a>
                         </li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-person-circle"></i> {{ user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
@@ -89,7 +153,7 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-4">
-                    <h5>About CleverCupid</h5>
+                    <h5>About The Clever Shop</h5>
                     <p>Your one-stop shop for all your needs. Quality products, great prices, and excellent service.</p>
                 </div>
                 <div class="col-md-4">
@@ -113,7 +177,7 @@
             </div>
             <hr>
             <div class="text-center">
-                <p>&copy; {% now "Y" %} CleverCupid. All rights reserved.</p>
+                <p>&copy; {% now "Y" %} The Clever Shop. All rights reserved.</p>
             </div>
         </div>
     </footer>

@@ -13,6 +13,46 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Popover(popoverTriggerEl);
     });
 
+    // Prevent dropdown items with toggle from navigating
+    document.querySelectorAll('.dropdown-item.dropdown-toggle').forEach(function(item) {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // If on mobile, manually show/hide the submenu
+            if (window.innerWidth < 992) {
+                const submenu = this.nextElementSibling;
+                if (submenu && submenu.classList.contains('dropdown-menu')) {
+                    if (submenu.style.display === 'block') {
+                        submenu.style.display = 'none';
+                    } else {
+                        submenu.style.display = 'block';
+                    }
+                }
+            }
+        });
+    });
+    
+    // Adjust submenu positions to prevent them from going off-screen
+    function adjustSubmenuPositions() {
+        document.querySelectorAll('.dropdown-submenu > .dropdown-menu').forEach(function(submenu) {
+            const rect = submenu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                submenu.style.right = '100%';
+                submenu.style.left = 'auto';
+            } else {
+                submenu.style.left = '100%';
+                submenu.style.right = 'auto';
+            }
+        });
+    }
+    
+    // Check positions when window is resized
+    window.addEventListener('resize', adjustSubmenuPositions);
+    
+    // Initial check
+    setTimeout(adjustSubmenuPositions, 100);
+
     // Cart quantity buttons
     document.querySelectorAll('.quantity-input').forEach(function(input) {
         input.addEventListener('change', function() {

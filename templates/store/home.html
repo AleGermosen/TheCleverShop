@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}CleverCupid - Home{% endblock %}
+{% block title %}The Clever Shop - Home{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
 <section class="hero-section position-relative mb-5">
     <div class="hero-content text-center text-white">
-        <h1 class="display-4 fw-bold">Welcome to CleverCupid</h1>
+        <h1 class="display-4 fw-bold">Welcome to The Clever Shop</h1>
         <p class="lead">Discover amazing products at great prices</p>
         <a href="{% url 'store:product_list' %}" class="btn btn-primary btn-lg">Shop Now</a>
     </div>
@@ -27,6 +27,21 @@
                     <h5 class="card-title">{{ category.name }}</h5>
                     <p class="card-text">{{ category.description|truncatewords:20 }}</p>
                     <a href="{% url 'store:category_detail' category.slug %}" class="btn btn-outline-primary">View Products</a>
+                    
+                    {% with subcategories=category.get_subcategories %}
+                    {% if subcategories %}
+                    <div class="mt-3">
+                        <h6>Subcategories:</h6>
+                        <div class="d-flex flex-wrap">
+                            {% for subcategory in subcategories %}
+                            <a href="{% url 'store:category_detail' subcategory.slug %}" class="badge bg-light text-dark me-2 mb-2 p-2 text-decoration-none">
+                                {{ subcategory.name }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
                 </div>
             </div>
         </div>
@@ -42,11 +57,17 @@
         <div class="col-md-3">
             <div class="card product-card h-100">
                 {% if product.image %}
-                <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.name }}">
                 {% endif %}
                 <div class="card-body">
                     <h5 class="card-title">{{ product.name }}</h5>
-                    <p class="card-text">{{ product.description|truncatewords:15 }}</p>
+                    <p class="card-text">
+                        {% if product.short_description %}
+                            {{ product.short_description }}
+                        {% else %}
+                            {{ product.description|truncatewords:15 }}
+                        {% endif %}
+                    </p>
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="h5 mb-0">${{ product.price }}</span>
                         {% if product.stock > 0 %}
