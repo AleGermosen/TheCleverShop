@@ -1,0 +1,524 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}The Clever Shop - Home{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Fix for top spacing */
+    body {
+        margin-top: -25px;
+        padding-top: -25px;
+    }
+    
+    /* Hero section styling */
+    .hero-section {
+        background: linear-gradient(135deg, rgba(83, 109, 254, 0.9), rgba(61, 90, 254, 0.75)), url('https://source.unsplash.com/random/1600x900/?ecommerce') no-repeat center center;
+        background-size: cover;
+        color: white;
+        padding: 140px 0 160px;
+        margin-top: -20px; /* Negative margin to pull up the hero section */
+        margin-bottom: 2rem;
+        border-radius: 0 0 30px 30px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .hero-section h1 {
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        font-size: 3.5rem;
+    }
+    
+    .hero-section .lead {
+        font-weight: 400;
+        font-size: 1.5rem;
+        margin-bottom: 2.5rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .hero-section .btn-primary {
+        padding: 1rem 2.5rem;
+        font-size: 1.25rem;
+        border-radius: 50px;
+        background-color: var(--secondary-color);
+        border-color: var(--secondary-color);
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s;
+    }
+    
+    .hero-section .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .floating-shapes {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: 0;
+        overflow: hidden;
+    }
+    
+    .shape {
+        position: absolute;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+    
+    .shape-1 {
+        width: 200px;
+        height: 200px;
+        top: -100px;
+        right: 10%;
+    }
+    
+    .shape-2 {
+        width: 150px;
+        height: 150px;
+        bottom: -50px;
+        left: 15%;
+    }
+    
+    .shape-3 {
+        width: 80px;
+        height: 80px;
+        top: 30%;
+        left: 5%;
+    }
+    
+    .hero-content {
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Product badge */
+    .product-badge {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+    
+    /* Product image placeholder */
+    .image-placeholder {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        aspect-ratio: 1/1;
+        background-color: #f8f9fa;
+        color: #6c757d;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+    }
+    
+    /* Featured category card */
+    .category-card, .product-card {
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Category image container and cycling */
+    .category-image-container {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1/1;
+        overflow: hidden;
+        background-color: #f8f9fa;
+        flex-grow: 0;
+        min-height: 180px;
+        max-height: 220px;
+    }
+    
+    .category-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+        display: none;
+        padding: 15px;
+        object-position: center;
+    }
+    
+    .category-image.active {
+        opacity: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    /* Featured products */
+    .product-card .product-price {
+        margin-top: 5px;
+        margin-bottom: 10px;
+        font-size: 1.25rem;
+    }
+    
+    .product-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Subcategory badges styling */
+    .subcategory-badge {
+        background-color: #e9ecef;
+        color: #495057;
+        transition: all 0.2s ease;
+    }
+    
+    .subcategory-badge:hover {
+        background-color: #ced4da;
+        color: #212529;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section position-relative mb-3 mt-0">
+    <div class="floating-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+    <div class="container px-4 px-lg-5">
+        <div class="text-center hero-content">
+            <h1 class="display-3">Discover Amazing Products</h1>
+            <p class="lead mb-4">Find everything you need with incredible deals and exclusive offers</p>
+            <a class="btn btn-primary btn-lg" href="{% url 'store:product_list' %}">Shop Now</a>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Categories -->
+<section class="py-3 pb-1">
+    <div class="container px-4 px-lg-5 mt-0">
+        <div class="text-center mb-3">
+            <h2 class="fw-bold position-relative d-inline-block pb-2">Shop by Category</h2>
+        </div>
+        <div class="row gx-4 gx-lg-5 row-cols-1 row-cols-md-2 row-cols-xl-3 justify-content-center">
+            {% for category_data in categories_with_products %}
+            <div class="col mb-3">
+                <div class="card h-100 category-card shadow-sm">
+                    <!-- Card header with category name -->
+                    <div class="card-header bg-primary text-white py-1 px-2">
+                        <h5 class="card-title m-0 text-center">{{ category_data.category.name }}</h5>
+                    </div>
+                    
+                    <!-- Image container -->
+                    <div class="category-image-container category-image-cycler">
+                        <!-- Default placeholder that shows immediately -->
+                        <div class="image-placeholder category-image active">
+                            <i class="fas fa-image fa-3x text-secondary opacity-25"></i>
+                        </div>
+                        
+                        {% if category_data.category.image %}
+                        <img src="{{ category_data.category.image.url }}" class="category-image" alt="{{ category_data.category.name }}">
+                        {% endif %}
+                        
+                        {% for product in category_data.products %}
+                            {% if product.image %}
+                            <img src="{{ product.image_url }}" class="category-image" alt="{{ product.name }}" data-product-id="{{ product.id }}">
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if not category_data.category.image and category_data.products|length == 0 or not category_data.category.image and not category_data.products.0.image %}
+                        <!-- Display a text placeholder when no images are available -->
+                        <div class="category-image d-flex justify-content-center align-items-center bg-light">
+                            <h3>{{ category_data.category.name }}</h3>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Card body -->
+                    <div class="card-body p-2">
+                        <div class="text-center">
+                            <p class="card-text small mb-2">{{ category_data.category.description|truncatewords:8 }}</p>
+                            <a href="{% url 'store:category_detail' category_data.category.slug %}" class="btn btn-primary btn-sm">View Products</a>
+                        </div>
+                        
+                        {% with subcategories=category_data.category.get_subcategories %}
+                        {% if subcategories %}
+                        <div class="mt-2">
+                            <h6 class="text-center small mb-1">Subcategories:</h6>
+                            <div class="d-flex flex-wrap justify-content-center">
+                                {% for subcategory in subcategories %}
+                                <a href="{% url 'store:category_detail' subcategory.slug %}" class="badge text-dark me-1 mb-1 p-2 text-decoration-none small subcategory-badge">
+                                    {{ subcategory.name }}
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Featured Products Section -->
+<section class="py-2 bg-light">
+    <div class="container px-4 px-lg-5 mt-1">
+        <div class="text-center mb-3">
+            <h2 class="fw-bold position-relative d-inline-block pb-2">Featured Products</h2>
+        </div>
+        <div class="row gx-4 gx-lg-5 row-cols-1 row-cols-md-2 row-cols-xl-3 justify-content-center">
+            {% for product in featured_products %}
+            <div class="col mb-3">
+                <div class="card h-100 product-card shadow-sm">
+                    {% if product.old_price %}
+                    <!-- Sale badge-->
+                    <div class="badge bg-danger text-white position-absolute" style="top: 0.5rem; right: 0.5rem; border-radius: 30px; padding: 8px 15px; font-weight: 500; z-index: 2;">Sale</div>
+                    {% endif %}
+                    
+                    <!-- Card header with product name -->
+                    <div class="card-header bg-primary text-white py-1 px-2">
+                        <h5 class="card-title m-0 text-center">{{ product.name }}</h5>
+                    </div>
+                    
+                    <!-- Product image-->
+                    <div class="category-image-container category-image-cycler">
+                        <!-- Default loading placeholder -->
+                        <div class="image-placeholder category-image active">
+                            <i class="fas fa-image fa-3x text-secondary opacity-25"></i>
+                        </div>
+                        
+                        {% if product.image %}
+                        <img src="{{ product.image_url }}" class="category-image" alt="{{ product.name }}">
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Product details-->
+                    <div class="card-body p-3">
+                        <div class="text-center">
+                            <!-- Product reviews-->
+                            <div class="d-flex justify-content-center small text-warning mb-2">
+                                <div class="bi-star-fill"></div>
+                                <div class="bi-star-fill"></div>
+                                <div class="bi-star-fill"></div>
+                                <div class="bi-star-fill"></div>
+                                <div class="bi-star"></div>
+                            </div>
+                            <!-- Product price-->
+                            <div class="product-price mb-3">
+                                {% if product.old_price %}
+                                <span class="text-muted text-decoration-line-through me-2">${{ product.old_price }}</span>
+                                <span class="text-danger fw-bold">${{ product.price }}</span>
+                                {% else %}
+                                <span class="fw-bold">${{ product.price }}</span>
+                                {% endif %}
+                            </div>
+                            <a class="btn btn-primary" href="{% url 'store:product_detail' product.slug %}">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Special Offers Section -->
+<section class="py-3 bg-gradient">
+    <div class="container px-4 px-lg-5">
+        <div class="text-center mb-3">
+            <h2 class="fw-bold position-relative d-inline-block pb-2">Special Offers</h2>
+        </div>
+        <div class="row g-4 justify-content-center">
+            <!-- First offer card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-gift fa-3x text-primary"></i>
+                        </div>
+                        <h3 class="fs-5 fw-bold">New Customer Discount</h3>
+                        <p class="mb-3">Get 15% off your first order when you sign up!</p>
+                        <div class="d-grid">
+                            <a href="{% url 'accounts:register' %}" class="btn btn-outline-primary">Sign Up Now</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Second offer card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-truck fa-3x text-primary"></i>
+                        </div>
+                        <h3 class="fs-5 fw-bold">Free Shipping</h3>
+                        <p class="mb-3">Free shipping on all orders over $50!</p>
+                        <div class="d-grid">
+                            <a href="{% url 'store:product_list' %}" class="btn btn-outline-primary">Shop Now</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Third offer card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-percentage fa-3x text-primary"></i>
+                        </div>
+                        <h3 class="fs-5 fw-bold">Weekly Deals</h3>
+                        <p class="mb-3">Check back every week for new exclusive deals!</p>
+                        <div class="d-grid">
+                            <a href="{% url 'store:product_list' %}" class="btn btn-outline-primary">View Deals</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Call to action section-->
+<section class="py-5 bg-dark">
+    <div class="container px-4 px-lg-5 my-5">
+        <div class="row gx-4 gx-lg-5 align-items-center">
+            <div class="col-lg-8">
+                <h2 class="text-white fw-bold mb-3">Ready to start shopping?</h2>
+                <p class="text-white-50 mb-0">Create an account today to unlock exclusive deals and track your orders!</p>
+            </div>
+            <div class="col-lg-4 text-center text-lg-end">
+                <a class="btn btn-primary btn-lg px-4 me-sm-3" href="{% url 'accounts:register' %}">Sign Up Now</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Set fixed height for category image containers to reduce empty space
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fix the height of category image containers
+        document.querySelectorAll('.category-card .category-image-container').forEach(function(container) {
+            container.style.height = '140px';
+            container.style.minHeight = '140px';
+            container.style.maxHeight = '140px';
+        });
+        
+        // Set larger height for product card images
+        document.querySelectorAll('.product-card .category-image-container').forEach(function(container) {
+            container.style.height = '200px';
+            container.style.minHeight = '200px';
+            container.style.maxHeight = '200px';
+        });
+        
+        // Reduce top padding in card bodies
+        document.querySelectorAll('.category-card .card-body').forEach(function(cardBody) {
+            cardBody.style.paddingTop = '0.5rem';
+        });
+        
+        // Increase padding in product card bodies
+        document.querySelectorAll('.product-card .card-body').forEach(function(cardBody) {
+            cardBody.style.paddingTop = '0.75rem';
+            cardBody.style.paddingBottom = '1rem';
+        });
+    });
+
+    // Preload all category images and initialize them when ready
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.category-image-cycler').forEach(function(container) {
+            // Get all the real images (not placeholders)
+            const images = Array.from(container.querySelectorAll('img.category-image'));
+            const placeholder = container.querySelector('.image-placeholder');
+            
+            if (images.length === 0) {
+                // No images to load, keep placeholder visible
+                return;
+            }
+            
+            // Count loaded images
+            let loadedImages = 0;
+            
+            // Function to check if all images loaded
+            function checkAllImagesLoaded() {
+                loadedImages++;
+                if (loadedImages === images.length) {
+                    // All images loaded, hide placeholder and show first real image
+                    if (placeholder) {
+                        placeholder.classList.remove('active');
+                    }
+                    if (images[0]) {
+                        images[0].classList.add('active');
+                    }
+                }
+            }
+            
+            // Set up load event for each image
+            images.forEach(function(img) {
+                if (img.complete) {
+                    checkAllImagesLoaded();
+                } else {
+                    img.addEventListener('load', checkAllImagesLoaded);
+                    img.addEventListener('error', checkAllImagesLoaded); // Also count errors
+                }
+            });
+        });
+    });
+
+    // Function to cycle through category images
+    function cycleImages() {
+        document.querySelectorAll('.category-image-cycler').forEach(function(container) {
+            // Only work with actual <img> images (not placeholders)
+            const images = Array.from(container.querySelectorAll('img.category-image'));
+            if (images.length <= 1) return; // Skip if only one or no real images
+            
+            // Find active image and make it inactive
+            const activeImage = container.querySelector('.category-image.active:not(.image-placeholder)');
+            if (!activeImage) {
+                // If no active image, set the first one as active
+                if (images.length > 0) {
+                    images[0].classList.add('active');
+                }
+                return;
+            }
+            
+            activeImage.classList.remove('active');
+            
+            // Find next image or loop back to first
+            const currentIndex = images.indexOf(activeImage);
+            const nextIndex = (currentIndex + 1) % images.length;
+            const nextImage = images[nextIndex];
+            
+            // Make next image active
+            if (nextImage) {
+                nextImage.classList.add('active');
+            }
+        });
+    }
+    
+    // Start cycling images after a short delay to allow initial loading
+    if (document.querySelectorAll('.category-image-cycler').length > 0) {
+        // First cycle immediately after page loads
+        setTimeout(cycleImages, 1000);
+        // Then set up regular cycling
+        setInterval(cycleImages, 5000); // Change image every 5 seconds
+    }
+</script>
+{% endblock %} 
