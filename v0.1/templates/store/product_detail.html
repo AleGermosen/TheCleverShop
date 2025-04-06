@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}{{ product.name }} - CleverCupid{% endblock %}
 
@@ -131,9 +132,53 @@
             {% endif %}
         </div>
 
-        {% if product.stock > 0 %}
-        <form method="post" action="{% url 'store:add_to_cart' product.id %}" class="mb-4">
+        {% if product.stock > 0 or product.has_sizes %}
+        <form method="post" action="{% url 'store:add_to_cart' product.id %}" 
+            id="add-to-cart-form"
+            data-product-id="{{ product.id }}"
+            data-product-name="{{ product.name }}"
+            data-product-price="{{ product.price }}"
+            data-product-category="{{ product.category.name }}"
+            data-product-image="{% if product.image %}{{ product.image.url }}{% endif %}"
+            data-product-max-quantity="{{ product.stock }}">
             {% csrf_token %}
+            
+            {% if product.has_sizes %}
+            <div class="mb-3">
+                <label class="form-label">Size:</label>
+                <div class="mb-2">
+                    {% for size in product.sizes.all %}
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input size-radio" type="radio" name="size_id" id="size_{{ size.id }}" 
+                               value="{{ size.id }}" 
+                               data-price="{{ size.get_final_price }}"
+                               data-size="{{ size.get_size_display }}"
+                               data-stock="{{ size.stock }}"
+                               {% if size.stock <= 0 %}disabled{% endif %}
+                               required>
+                        <label class="form-check-label size-label {% if size.stock <= 0 %}text-muted{% endif %}" for="size_{{ size.id }}">
+                            {{ size.get_size_display }}
+                            {% if size.price_adjustment > 0 %}
+                            <span class="text-primary">(+${{ size.price_adjustment }})</span>
+                            {% elif size.price_adjustment < 0 %}
+                            <span class="text-success">(-${{ size.price_adjustment|floatformat:2|cut:'-' }})</span>
+                            {% endif %}
+                            {% if size.stock <= 0 %}
+                            <span class="text-danger">(Out of Stock)</span>
+                            {% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="selected-size-info mb-3">
+                    <div class="d-none" id="size-details">
+                        <span class="badge bg-success mb-2" id="size-stock-badge"></span>
+                        <div class="fw-bold" id="size-price"></div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <div class="row g-3 align-items-center">
                 <div class="col-auto">
                     <label for="quantity" class="form-label">Quantity:</label>
@@ -146,7 +191,7 @@
                     </div>
                 </div>
                 <div class="col-auto">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="add-to-cart-btn">
                         <i class="bi bi-cart-plus"></i> Add to Cart
                     </button>
                 </div>
@@ -247,92 +292,120 @@
 {% endif %}
 {% endblock %}
 
-{% block extra_js %}
+{% block extra_scripts %}
 <script>
-// Initialize the image gallery on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Add transition for smooth image changes
-    const mainImage = document.getElementById('mainImage');
-    mainImage.style.transition = 'opacity 0.2s ease';
-});
-
-// Navigate to prev/next image
-function navigateImage(direction) {
-    const thumbnails = document.querySelectorAll('.thumbnail-images img');
-    if (thumbnails.length === 0) return;
+    const form = document.getElementById('add-to-cart-form');
+    if (!form) return;
     
-    let currentIndex = -1;
+    const isAuthenticated = document.body.getAttribute('data-user-authenticated') === 'true';
     
-    // Find the index of the active thumbnail
-    thumbnails.forEach((thumb, index) => {
-        if (thumb.classList.contains('active')) {
-            currentIndex = index;
-        }
-    });
-    
-    // Calculate the next index
-    if (direction === 'prev') {
-        currentIndex = (currentIndex - 1 + thumbnails.length) % thumbnails.length;
-    } else {
-        currentIndex = (currentIndex + 1) % thumbnails.length;
-    }
-    
-    // Change the main image
-    const nextImageSrc = thumbnails[currentIndex].src;
-    const mainImage = document.getElementById('mainImage');
-    
-    // Fade out
-    mainImage.style.opacity = 0;
-    
-    // Change image and fade in
-    setTimeout(() => {
-        mainImage.src = nextImageSrc;
-        mainImage.style.opacity = 1;
-        
-        // Update active state
-        thumbnails.forEach((thumb, idx) => {
-            thumb.classList.toggle('active', idx === currentIndex);
-        });
-    }, 200);
-}
-
-// Make thumbnails clickable
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.thumbnail-images img').forEach((thumb, index) => {
-        thumb.addEventListener('click', function() {
-            const mainImage = document.getElementById('mainImage');
+    // If user is not authenticated, handle adding to guest cart
+    if (!isAuthenticated) {
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
             
-            // Fade out
-            mainImage.style.opacity = 0;
+            // Get product details from data attributes
+            const productId = form.dataset.productId;
+            const productName = form.dataset.productName;
+            const productPrice = parseFloat(form.dataset.productPrice);
+            const productCategory = form.dataset.productCategory;
+            const productImage = form.dataset.productImage;
+            const maxQuantity = parseInt(form.dataset.productMaxQuantity);
             
-            // Change image and fade in
+            // Get quantity from form input
+            const quantityInput = form.querySelector('input[name="quantity"]');
+            const quantity = parseInt(quantityInput?.value || 1);
+            
+            // Get size if available
+            const sizeSelect = form.querySelector('select[name="size"]');
+            const size = sizeSelect?.value || null;
+            
+            // Add to guest cart
+            addToGuestCart(productId, productName, productPrice, productCategory, productImage, quantity, size, maxQuantity);
+            
+            // Show success message
+            const alertContainer = document.createElement('div');
+            alertContainer.classList.add('alert', 'alert-success', 'position-fixed', 'bottom-0', 'end-0', 'm-3');
+            alertContainer.style.zIndex = '1050';
+            alertContainer.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <div>
+                        <strong>Added to cart!</strong>
+                        <p class="mb-0">${quantity} × ${productName} ${size ? `(${size})` : ''}</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.body.appendChild(alertContainer);
+            
+            // Auto-dismiss after 3 seconds
             setTimeout(() => {
-                mainImage.src = this.src;
-                mainImage.style.opacity = 1;
-                
-                // Update active state
-                document.querySelectorAll('.thumbnail-images img').forEach((t, idx) => {
-                    t.classList.toggle('active', idx === index);
-                });
-            }, 200);
+                alertContainer.remove();
+            }, 3000);
         });
-    });
+    }
 });
 
-function incrementQuantity() {
-    const input = document.getElementById('quantity');
-    const max = parseInt(input.getAttribute('max'));
-    const currentValue = parseInt(input.value);
-    if (currentValue < max) {
-        input.value = currentValue + 1;
+function addToGuestCart(productId, productName, productPrice, productCategory, productImage, quantity, size, maxQuantity) {
+    // Initialize guest cart if it doesn't exist
+    if (!localStorage.getItem('guestCart')) {
+        localStorage.setItem('guestCart', JSON.stringify({
+            items: [],
+            lastUpdated: new Date().toISOString()
+        }));
     }
+    
+    // Get the current cart
+    const guestCart = JSON.parse(localStorage.getItem('guestCart'));
+    
+    // Check if the item already exists in the cart
+    const existingItemIndex = guestCart.items.findIndex(item => 
+        item.id === productId && (size ? item.size === size : !item.size)
+    );
+    
+    if (existingItemIndex !== -1) {
+        // Update quantity if item exists
+        const currentQuantity = guestCart.items[existingItemIndex].quantity;
+        const newQuantity = Math.min(currentQuantity + quantity, maxQuantity);
+        guestCart.items[existingItemIndex].quantity = newQuantity;
+    } else {
+        // Add new item if it doesn't exist
+        guestCart.items.push({
+            id: productId,
+            name: productName,
+            price: productPrice,
+            category: productCategory,
+            image: productImage,
+            quantity: quantity,
+            size: size,
+            max_quantity: maxQuantity
+        });
+    }
+    
+    // Update last updated timestamp
+    guestCart.lastUpdated = new Date().toISOString();
+    
+    // Save to localStorage
+    localStorage.setItem('guestCart', JSON.stringify(guestCart));
+    
+    // Update cart count in navbar
+    updateCartCount();
 }
 
-function decrementQuantity() {
-    const input = document.getElementById('quantity');
-    const currentValue = parseInt(input.value);
-    if (currentValue > 1) {
-        input.value = currentValue - 1;
+function updateCartCount() {
+    const cartCountBadge = document.querySelector('.cart-count');
+    if (cartCountBadge) {
+        const guestCart = JSON.parse(localStorage.getItem('guestCart')) || { items: [] };
+        let count = 0;
+        
+        // Sum quantities of all items
+        guestCart.items.forEach(item => {
+            count += item.quantity;
+        });
+        
+        cartCountBadge.textContent = count;
     }
 }
 </script>

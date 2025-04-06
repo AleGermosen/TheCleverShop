@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 from adminsortable2.admin import SortableInlineAdminMixin, SortableAdminMixin, SortableAdminBase
-from .models import Category, Product, ProductImage, Cart, CartItem, Order, OrderItem, ShippingAddress
+from .models import Category, Product, ProductImage, ProductSize, Cart, CartItem, Order, OrderItem, ShippingAddress
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -23,6 +23,18 @@ class ProductImageInline(SortableInlineAdminMixin, admin.TabularInline):
         return "No Image"
     get_image_preview.short_description = 'Preview'
 
+class ProductSizeInline(admin.TabularInline):
+    model = ProductSize
+    extra = 1
+    fields = ['size', 'price_adjustment', 'stock', 'weight']
+
+@admin.register(ProductSize)
+class ProductSizeAdmin(admin.ModelAdmin):
+    list_display = ['product', 'get_size_display', 'price_adjustment', 'stock', 'is_in_stock']
+    list_filter = ['product', 'size']
+    search_fields = ['product__name']
+    list_editable = ['price_adjustment', 'stock']
+
 @admin.register(ProductImage)
 class ProductImageAdmin(SortableAdminMixin, admin.ModelAdmin):
     list_display = ['get_product_name', 'get_image_preview', 'order']
@@ -41,12 +53,12 @@ class ProductImageAdmin(SortableAdminMixin, admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(SortableAdminBase, admin.ModelAdmin):
-    list_display = ['name', 'display_category', 'display_primary_image', 'price', 'stock', 'featured', 'created_at']
+    list_display = ['name', 'display_category', 'display_primary_image', 'price', 'stock', 'has_sizes', 'featured', 'created_at']
     list_filter = ['category__parent', 'category', 'featured', 'created_at']
     list_editable = ['price', 'stock', 'featured']
     search_fields = ['name', 'short_description', 'description']
     prepopulated_fields = {'slug': ('name',)}
-    inlines = [ProductImageInline]
+    inlines = [ProductImageInline, ProductSizeInline]
     fieldsets = (
         (None, {
             'fields': ('category', 'name', 'slug', 'price', 'old_price', 'stock', 'featured')
@@ -68,6 +80,11 @@ class ProductAdmin(SortableAdminBase, admin.ModelAdmin):
             return mark_safe(f'<img src="{obj.image_url}" width="50" height="50" style="object-fit: contain;" />')
         return "No Image"
     display_primary_image.short_description = 'Primary Image'
+    
+    def has_sizes(self, obj):
+        return obj.sizes.exists()
+    has_sizes.boolean = True
+    has_sizes.short_description = 'Has Sizes'
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
@@ -77,7 +94,7 @@ class CartAdmin(admin.ModelAdmin):
 
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):
-    list_display = ['cart', 'product', 'quantity', 'created_at']
+    list_display = ['cart', 'product', 'size', 'quantity', 'created_at']
     list_filter = ['created_at']
     search_fields = ['cart__user__username', 'product__name']
 
@@ -90,7 +107,7 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
-    list_display = ['order', 'product', 'quantity', 'price', 'created_at']
+    list_display = ['order', 'product', 'size', 'quantity', 'price', 'created_at']
     list_filter = ['created_at']
     search_fields = ['order__order_number', 'product__name']
 

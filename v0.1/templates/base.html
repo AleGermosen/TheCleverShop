@@ -16,6 +16,44 @@
             border-radius: 50%;
             background-color: white;
         }
+        /* Size selection styling */
+        .size-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .size-radio {
+            display: none;
+        }
+        
+        .size-label {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .size-radio:checked + .size-label {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .size-radio:disabled + .size-label {
+            opacity: 0.5;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+        
+        .size-radio:not(:disabled) + .size-label:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
     </style>
     <link rel="icon" href="{% static 'img/clevercupid_round.png' %}" type="image/png" sizes="192x192">
     <link rel="apple-touch-icon" href="{% static 'img/clevercupid_round.png' %}">
@@ -25,7 +63,7 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body data-user-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}">
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
@@ -43,6 +81,12 @@
                             Categories
                         </a>
                         <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'store:product_list' %}">
+                                    <i class="bi bi-grid-3x3-gap"></i> All Products
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
                             {% if parent_categories %}
                             <!-- Featured Category -->
                             <li class="dropdown-submenu">
@@ -107,6 +151,11 @@
                                 {% endif %}
                             {% endfor %}
                         </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'store:3d_prints' %}">
+                            <i class="bi bi-printer-3d"></i> Custom 3D Prints
+                        </a>
                     </li>
                 </ul>
                 <form class="d-flex me-3 search-form" action="{% url 'store:search' %}" method="GET">
@@ -202,6 +251,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/main.js' %}"></script>
+    {% if not user.is_authenticated %}
+    <script src="{% static 'js/guest-cart.js' %}"></script>
+    {% endif %}
     {% block extra_js %}{% endblock %}
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html> 

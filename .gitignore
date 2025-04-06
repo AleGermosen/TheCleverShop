@@ -23,12 +23,13 @@ wheels/
 # Django
 *.log
 local_settings.py
-db.sqlite3
-db.sqlite3-journal
-media/
+**/db.sqlite3
+**/db.sqlite3-journal
+**/media/
 staticfiles/
 
 # Environment variables
+**/.env
 .env
 
 # IDE
@@ -38,8 +39,14 @@ staticfiles/
 *.swo
 .DS_Store
 
+# Virtual environment
+.venv/
+venv/
+ENV/
+
 # Project specific
 temp/
 notes.txt
-*.bak
-*.tmp 
+**/*.bak
+**/*.tmp
+.gitignore

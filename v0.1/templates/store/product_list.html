@@ -70,6 +70,30 @@
                 </div>
             {% endif %}
             
+            <!-- Sorting options -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <span class="me-2">Sort by:</span>
+                    <div class="btn-group">
+                        <a href="{% url 'store:product_list' %}{% if request.GET.category %}?category={{ request.GET.category }}{% elif request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                           class="btn btn-outline-secondary {% if not sort_by %}active{% endif %}">
+                            <i class="fas fa-sort-alpha-down"></i> Name (A-Z)
+                        </a>
+                        <a href="{% url 'store:product_list' %}?sort=price_low{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                           class="btn btn-outline-secondary {% if sort_by == 'price_low' %}active{% endif %}">
+                            <i class="fas fa-sort-amount-down-alt"></i> Price: Low to High
+                        </a>
+                        <a href="{% url 'store:product_list' %}?sort=price_high{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                           class="btn btn-outline-secondary {% if sort_by == 'price_high' %}active{% endif %}">
+                            <i class="fas fa-sort-amount-down"></i> Price: High to Low
+                        </a>
+                    </div>
+                </div>
+                <div class="text-muted">
+                    {{ products.count }} product(s) found
+                </div>
+            </div>
+            
             <!-- Product grid -->
             <div class="row g-4">
                 {% for product in products %}

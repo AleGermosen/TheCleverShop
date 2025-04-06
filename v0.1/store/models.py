@@ -87,7 +87,7 @@ class Product(models.Model):
 
     @property
     def is_in_stock(self):
-        return self.stock > 0
+        return self.stock > 0 or self.sizes.filter(stock__gt=0).exists()
 
     @property
     def get_category_display(self):
@@ -95,6 +95,11 @@ class Product(models.Model):
         if self.category.is_subcategory:
             return f"{self.category.parent.name} › {self.category.name}"
         return self.category.name
+        
+    @property
+    def has_sizes(self):
+        """Check if the product has size options"""
+        return self.sizes.exists()
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
@@ -109,6 +114,53 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f'Image for {self.product.name}'
+
+class ProductSize(models.Model):
+    """Model for product size options"""
+    SIZE_CHOICES = [
+        ('xs', 'Extra Small'),
+        ('s', 'Small'),
+        ('m', 'Medium'),
+        ('l', 'Large'),
+        ('xl', 'Extra Large'),
+        ('xxl', '2XL'),
+        ('3xl', '3XL'),
+        ('4xl', '4XL'),
+        ('5xl', '5XL'),
+        ('one-size', 'One Size'),
+        # 3D Print specific sizes
+        ('small', 'Small (10cm)'),
+        ('medium', 'Medium (15cm)'),
+        ('large', 'Large (20cm)'),
+        ('custom', 'Custom Size'),
+    ]
+    
+    product = models.ForeignKey(Product, related_name='sizes', on_delete=models.CASCADE)
+    size = models.CharField(max_length=20, choices=SIZE_CHOICES)
+    price_adjustment = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Price adjustment for this size (can be positive or negative)")
+    stock = models.PositiveIntegerField(default=0)
+    weight = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True, help_text="Weight in kg")
+    
+    class Meta:
+        unique_together = ('product', 'size')
+        verbose_name = 'Product Size'
+        verbose_name_plural = 'Product Sizes'
+        
+    def __str__(self):
+        adjustment = ""
+        if self.price_adjustment > 0:
+            adjustment = f" (+${self.price_adjustment})"
+        elif self.price_adjustment < 0:
+            adjustment = f" (-${abs(self.price_adjustment)})"
+        return f"{self.get_size_display()}{adjustment}"
+    
+    def get_final_price(self):
+        """Calculate the final price including the adjustment"""
+        return self.product.price + self.price_adjustment
+        
+    @property
+    def is_in_stock(self):
+        return self.stock > 0
 
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -129,14 +181,19 @@ class Cart(models.Model):
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    size = models.ForeignKey(ProductSize, on_delete=models.SET_NULL, null=True, blank=True)
     quantity = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f'{self.quantity} x {self.product.name}'
+        size_str = f" - {self.size.get_size_display()}" if self.size else ""
+        return f'{self.quantity} x {self.product.name}{size_str}'
 
     @property
     def total_price(self):
+        if self.size and self.size.price_adjustment:
+            # Use size-specific price if available
+            return (self.product.price + self.size.price_adjustment) * self.quantity
         return self.product.price * self.quantity
 
 class ShippingAddress(models.Model):
@@ -211,12 +268,14 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
+    size = models.CharField(max_length=50, blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
 
     def __str__(self):
-        return f'{self.quantity} x {self.product.name}'
+        size_str = f" - {self.size}" if self.size else ""
+        return f'{self.quantity} x {self.product.name}{size_str}'
 
     @property
     def total_price(self):

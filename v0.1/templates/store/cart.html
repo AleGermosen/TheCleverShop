@@ -1,9 +1,11 @@
 {% extends 'base.html' %}
 {% load store_extras %}
+{% load static %}
 
 {% block title %}Shopping Cart - CleverCupid{% endblock %}
 
 {% block content %}
+<div id="content">
 <h1 class="mb-4">Shopping Cart</h1>
 
 {% if cart_items %}
@@ -12,12 +14,12 @@
         <div class="card">
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table">
+                    <table class="table cart-table">
                         <thead>
                             <tr>
                                 <th>Product</th>
                                 <th>Price</th>
-                                <th>Quantity</th>
+                                <th style="min-width: 130px; text-align: center;">Quantity</th>
                                 <th>Total</th>
                                 <th></th>
                             </tr>
@@ -33,18 +35,27 @@
                                         <div>
                                             <h6 class="mb-0">{{ item.product.name }}</h6>
                                             <small class="text-muted">{{ item.product.category.name }}</small>
+                                            {% if item.size %}
+                                            <small class="d-block text-muted">Size: {{ item.size.get_size_display }}</small>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </td>
-                                <td>${{ item.product.price }}</td>
+                                <td class="unit-price">{% if item.size %}${{ item.size.get_final_price }}{% else %}${{ item.product.price }}{% endif %}</td>
                                 <td>
                                     <div class="input-group" style="width: 130px;">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm quantity-btn" data-item-id="{{ item.id }}" data-action="decrease">-</button>
-                                        <input type="number" class="form-control form-control-sm text-center quantity-input" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" data-item-id="{{ item.id }}">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm quantity-btn" data-item-id="{{ item.id }}" data-action="increase">+</button>
+                                        <button type="button" class="btn btn-primary btn-sm quantity-btn" data-item-id="{{ item.id }}" data-action="decrease" style="height: 38px; width: 38px;">
+                                            <i class="bi bi-dash"></i>
+                                        </button>
+                                        <span class="form-control text-center quantity-display" style="background-color: #f8f9fa; font-weight: bold; font-size: 1.1rem; padding-top: 6px;" data-max="{% if item.size %}{{ item.size.stock }}{% else %}{{ item.product.stock }}{% endif %}" data-item-id="{{ item.id }}">
+                                            {{ item.quantity }}
+                                        </span>
+                                        <button type="button" class="btn btn-primary btn-sm quantity-btn" data-item-id="{{ item.id }}" data-action="increase" style="height: 38px; width: 38px;">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
                                     </div>
                                 </td>
-                                <td>${{ item.total_price }}</td>
+                                <td class="item-total">${{ item.total_price }}</td>
                                 <td>
                                     <form method="post" action="{% url 'store:remove_from_cart' item.id %}" class="d-inline">
                                         {% csrf_token %}
@@ -80,10 +91,10 @@
                     <span>Shipping:</span>
                     <span>{% if cart_total >= 50 %}Free{% else %}$5.00{% endif %}</span>
                 </div>
-                <div class="d-flex justify-content-between mb-2">
+                <!-- <div class="d-flex justify-content-between mb-2">
                     <span>Tax (10%):</span>
                     <span>${{ tax_amount }}</span>
-                </div>
+                </div> -->
                 <hr>
                 <div class="d-flex justify-content-between mb-3">
                     <strong>Total:</strong>
@@ -113,60 +124,9 @@
     </a>
 </div>
 {% endif %}
+</div>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Handle quantity buttons
-    document.querySelectorAll('.quantity-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const itemId = this.dataset.itemId;
-            const action = this.dataset.action;
-            const input = this.parentElement.querySelector('.quantity-input');
-            updateQuantity(itemId, action, input);
-        });
-    });
-
-    // Handle quantity input changes
-    document.querySelectorAll('.quantity-input').forEach(input => {
-        input.addEventListener('change', function() {
-            const itemId = this.dataset.itemId;
-            updateQuantity(itemId, 'set', this, this.value);
-        });
-    });
-});
-
-function updateQuantity(itemId, action, input, value = null) {
-    let newValue = parseInt(input.value);
-
-    if (action === 'increase') {
-        newValue = Math.min(newValue + 1, parseInt(input.max));
-    } else if (action === 'decrease') {
-        newValue = Math.max(newValue - 1, 1);
-    } else if (action === 'set') {
-        newValue = Math.max(1, Math.min(parseInt(value), parseInt(input.max)));
-    }
-
-    if (newValue !== parseInt(input.value)) {
-        input.value = newValue;
-        fetch(`/store/cart/update/${itemId}/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({
-                quantity: newValue
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            }
-        });
-    }
-}
-</script>
+{% block extra_scripts %}
+<script src="{% static 'js/cart-functions.js' %}"></script>
 {% endblock %} 

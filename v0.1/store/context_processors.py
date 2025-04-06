@@ -1,4 +1,5 @@
 from .models import Category, Cart, CartItem
+from django.db.models import Sum
 
 def store_context(request):
     """
@@ -17,7 +18,11 @@ def store_context(request):
     cart_count = 0
     if request.user.is_authenticated:
         cart, created = Cart.objects.get_or_create(user=request.user)
-        cart_count = CartItem.objects.filter(cart=cart).count()
+        # Get the sum of all item quantities instead of just counting items
+        cart_items = CartItem.objects.filter(cart=cart)
+        if cart_items.exists():
+            total_quantity = cart_items.aggregate(total=Sum('quantity'))
+            cart_count = total_quantity['total'] or 0
     
     return {
         'all_categories': Category.objects.all(),

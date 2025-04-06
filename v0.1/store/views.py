@@ -10,7 +10,7 @@ from decimal import Decimal
 import json
 import stripe
 
-from .models import Category, Product, Cart, CartItem, Order, OrderItem, ShippingAddress
+from .models import Category, Product, Cart, CartItem, Order, OrderItem, ShippingAddress, ProductSize
 from .forms import ShippingAddressForm
 
 def home(request):
@@ -42,7 +42,7 @@ def home(request):
     })
 
 def product_list(request):
-    products = Product.objects.all()
+    products = Product.objects.all().order_by('name')  # Default sorting by name A-Z
     root_categories = Category.objects.filter(parent=None)
     all_categories = Category.objects.all()
     
@@ -123,15 +123,24 @@ def category_detail(request, slug):
     # Get products from both the category and all its subcategories
     categories_to_include = [category]
     categories_to_include.extend(subcategories)
-    products = Product.objects.filter(category__in=categories_to_include)
+    products = Product.objects.filter(category__in=categories_to_include).order_by('name')  # Default sorting by name A-Z
+    
+    # Sorting
+    sort_by = request.GET.get('sort')
+    if sort_by == 'price_low':
+        products = products.order_by('price')
+    elif sort_by == 'price_high':
+        products = products.order_by('-price')
+    elif sort_by == 'name':
+        products = products.order_by('name')
     
     return render(request, 'store/category_detail.html', {
         'category': category,
         'subcategories': subcategories,
-        'products': products
+        'products': products,
+        'sort_by': sort_by
     })
 
-@login_required
 def cart(request):
     cart, created = Cart.objects.get_or_create(user=request.user)
     cart_items = CartItem.objects.filter(cart=cart)
@@ -158,15 +167,55 @@ def add_to_cart(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     cart, created = Cart.objects.get_or_create(user=request.user)
     quantity = int(request.POST.get('quantity', 1))
+    size_id = request.POST.get('size_id')
+    selected_size = None
     
-    # Check if product is already in cart
-    cart_item, created = CartItem.objects.get_or_create(
-        cart=cart,
-        product=product,
-        defaults={'quantity': quantity}
-    )
+    # Check if size was selected and validate it
+    if size_id:
+        try:
+            selected_size = get_object_or_404(ProductSize, id=size_id, product=product)
+            
+            # Check if selected size is in stock
+            if not selected_size.is_in_stock:
+                messages.error(request, f"Sorry, {product.name} in size {selected_size.get_size_display()} is out of stock.")
+                return redirect('store:product_detail', slug=product.slug)
+                
+            # Make sure requested quantity doesn't exceed stock for the size
+            if quantity > selected_size.stock:
+                messages.warning(request, f"Only {selected_size.stock} units available for {selected_size.get_size_display()}. Quantity adjusted.")
+                quantity = selected_size.stock
+                
+        except (ProductSize.DoesNotExist, ValueError):
+            messages.error(request, "Invalid size selection.")
+            return redirect('store:product_detail', slug=product.slug)
+    else:
+        # If product requires size but none was selected
+        if product.has_sizes:
+            messages.error(request, "Please select a size.")
+            return redirect('store:product_detail', slug=product.slug)
+        
+        # Check product stock if not using sizes
+        if quantity > product.stock:
+            messages.warning(request, f"Only {product.stock} units available. Quantity adjusted.")
+            quantity = product.stock
     
-    if not created:
+    # Check if product with same size is already in cart
+    cart_item = None
+    try:
+        if selected_size:
+            cart_item = CartItem.objects.get(cart=cart, product=product, size=selected_size)
+        else:
+            cart_item = CartItem.objects.get(cart=cart, product=product, size=None)
+    except CartItem.DoesNotExist:
+        # Item not in cart, create new one
+        cart_item = CartItem.objects.create(
+            cart=cart,
+            product=product,
+            size=selected_size,
+            quantity=quantity
+        )
+    else:
+        # Item exists, update quantity
         cart_item.quantity += quantity
         cart_item.save()
     
@@ -177,7 +226,7 @@ def add_to_cart(request, product_id):
         return JsonResponse({
             'success': True,
             'message': 'Product added to cart',
-            'cart_count': CartItem.objects.filter(cart=cart).count()
+            'cart_count': cart.total_items
         })
     
     # For normal form submissions, redirect to cart
@@ -190,10 +239,50 @@ def update_cart(request, item_id):
     data = json.loads(request.body)
     quantity = int(data.get('quantity', 1))
     
-    if quantity > 0 and quantity <= cart_item.product.stock:
-        cart_item.quantity = quantity
-        cart_item.save()
-        return JsonResponse({'success': True})
+    if quantity > 0:
+        # Check if we're using a size
+        if cart_item.size:
+            # Check against size stock
+            if quantity <= cart_item.size.stock:
+                cart_item.quantity = quantity
+                cart_item.save()
+            else:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Only {cart_item.size.stock} units available in this size.'
+                })
+        else:
+            # Check against product stock
+            if quantity <= cart_item.product.stock:
+                cart_item.quantity = quantity
+                cart_item.save()
+            else:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Only {cart_item.product.stock} units available.'
+                })
+        
+        # Recalculate cart totals
+        cart = cart_item.cart
+        cart_items = CartItem.objects.filter(cart=cart)
+        subtotal = sum(item.total_price for item in cart_items)
+        shipping_cost = Decimal('0.00') if subtotal >= 50 else Decimal('5.00')
+        tax_rate = Decimal('0.10')  # 10% tax rate
+        tax_amount = subtotal * tax_rate
+        total = subtotal + shipping_cost + tax_amount
+        
+        # Return updated values
+        return JsonResponse({
+            'success': True,
+            'item_total': str(cart_item.total_price),
+            'subtotal': str(subtotal),
+            'shipping_cost': str(shipping_cost),
+            'tax_amount': str(tax_amount),
+            'total': str(total),
+            'free_shipping_eligible': subtotal >= 50,
+            'amount_needed_for_free_shipping': str(max(0, 50 - subtotal)),
+            'cart_count': cart.total_items
+        })
     
     return JsonResponse({'success': False, 'error': 'Invalid quantity'})
 
@@ -234,11 +323,23 @@ def checkout(request):
 @login_required
 @require_POST
 def process_payment(request):
-    cart, created = Cart.objects.get_or_create(user=request.user)
+    cart = get_object_or_404(Cart, user=request.user)
     cart_items = CartItem.objects.filter(cart=cart)
     
-    if not cart_items.exists():
-        return JsonResponse({'success': False, 'error': 'Cart is empty'})
+    if not cart_items:
+        messages.error(request, "Your cart is empty.")
+        return redirect('store:cart')
+    
+    # Check stock availability before proceeding
+    for item in cart_items:
+        if item.size:
+            if item.quantity > item.size.stock:
+                messages.error(request, f"Sorry, only {item.size.stock} units of {item.product.name} in size {item.size.get_size_display()} are available.")
+                return redirect('store:cart')
+        else:
+            if item.quantity > item.product.stock:
+                messages.error(request, f"Sorry, only {item.product.stock} units of {item.product.name} are available.")
+                return redirect('store:cart')
     
     try:
         data = json.loads(request.body)
@@ -295,18 +396,33 @@ def process_payment(request):
         order.shipping_address = shipping_address
         order.save()
         
-        # Create order items and clear cart
-        for cart_item in cart_items:
+        # Create order items
+        for item in cart_items:
+            # Determine the price based on size
+            if item.size:
+                price = item.product.price + item.size.price_adjustment
+                size_name = item.size.get_size_display()
+                
+                # Reduce the size-specific stock
+                item.size.stock -= item.quantity
+                item.size.save()
+            else:
+                price = item.product.price
+                size_name = None
+                
+                # Reduce the product stock
+                item.product.stock -= item.quantity
+                item.product.save()
+            
             OrderItem.objects.create(
                 order=order,
-                product=cart_item.product,
-                quantity=cart_item.quantity,
-                price=cart_item.product.price
+                product=item.product,
+                price=price,
+                quantity=item.quantity,
+                size=size_name
             )
-            # Update product stock
-            cart_item.product.stock -= cart_item.quantity
-            cart_item.product.save()
         
+        # Empty cart after order is placed
         cart_items.delete()
         
         return JsonResponse({
@@ -337,10 +453,52 @@ def product_search(request):
         products = Product.objects.filter(
             Q(name__icontains=query) |
             Q(description__icontains=query)
-        )
+        ).order_by('name')  # Default sorting by name A-Z
+        
+        # Sorting
+        sort_by = request.GET.get('sort')
+        if sort_by == 'price_low':
+            products = products.order_by('price')
+        elif sort_by == 'price_high':
+            products = products.order_by('-price')
+        elif sort_by == 'name':
+            products = products.order_by('name')
     
     context = {
         'query': query,
         'products': products,
+        'sort_by': sort_by if 'sort_by' in locals() else None
     }
     return render(request, 'store/search_results.html', context)
+
+def threed_prints(request):
+    """
+    View for the 3D Prints page
+    """
+    # Query products with 3D print tag or specific 3D print category
+    # For this example, we're filtering products with "3D Print" in the name or description
+    # In a real app, you might want to create a specific tag or category for 3D prints
+    products = Product.objects.filter(
+        Q(name__icontains="3D Print") | 
+        Q(description__icontains="3D Print")
+    ).order_by('name')  # Default sorting by name A-Z
+    
+    # If this is a POST request for adding to cart, process it
+    if request.method == 'POST' and 'product_id' in request.POST:
+        product_id = request.POST.get('product_id')
+        return add_to_cart(request, product_id)
+    
+    # Sorting
+    sort_by = request.GET.get('sort')
+    if sort_by == 'price_low':
+        products = products.order_by('price')
+    elif sort_by == 'price_high':
+        products = products.order_by('-price')
+    elif sort_by == 'name':
+        products = products.order_by('name')
+    
+    return render(request, 'store/3d_prints.html', {
+        'products': products,
+        'title': '3D Prints',
+        'sort_by': sort_by
+    })
