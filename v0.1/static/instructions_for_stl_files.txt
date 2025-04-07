@@ -1,0 +1,88 @@
+# Instructions for Adding STL Files to the 3D Hero Section
+
+Follow these steps to add your own STL files to the rotating 3D display in the hero section:
+
+## 1. Prepare Your STL Files
+
+- Make sure your STL files are in ASCII format (binary STL files may also work)
+- Keep file sizes reasonable (under 5MB recommended for web performance)
+- Ensure models have a clean topology and appropriate triangle count
+- Test your models in a 3D viewer before uploading
+
+## 2. Add Files to the Static Directory
+
+- Place your STL files in the `/v0.1/static/models/` folder
+- Example file path: `/v0.1/static/models/your_model.stl`
+
+## 3. Update the Model List in the 3D Hero Script
+
+- Open `/v0.1/static/js/3d_hero.js`
+- Find the `modelList` array (around line 130)
+- Add a new entry for your STL file with this format:
+
+```javascript
+{
+    type: 'stl',
+    url: '/static/models/your_model.stl',  // Path to your file
+    color: 0x4CAF50,                      // Hex color (0x followed by hex code)
+    displayName: 'Your Model Name'         // Display name shown in the UI
+}
+```
+
+Example of a complete model list with a new file:
+
+```javascript
+const modelList = [
+    { 
+        type: 'stl',
+        url: '/static/models/sample_print.stl',
+        color: 0x4CAF50,
+        displayName: 'Sample Print'
+    },
+    { 
+        type: 'stl',
+        url: '/static/models/your_model.stl',  // Your new model
+        color: 0xFF5722,                      // Orange color
+        displayName: 'Your Cool Model'         // Name that appears in UI
+    },
+    // Other models...
+];
+```
+
+## 4. Customizing Model Appearance
+
+You can customize how your model appears:
+
+- `color`: Change the hex color (use 0x followed by a hex color code)
+- `displayName`: Set the name that appears in the UI badge
+
+## 5. Model Positioning and Scaling
+
+The code automatically:
+- Centers models based on their geometry
+- Scales models to a reasonable size
+- Positions models above the printing platform
+
+If your model appears too small or large, you can adjust the scaling factor in the `loadSTLModel` function:
+- Find `const scaleFactor = 3 / maxDim;` (around line 250)
+- Increase the number 3 for larger models, decrease for smaller models
+
+## 6. Testing Your Models
+
+- Restart the Django server if it's already running
+- Visit the home page to see your 3D models
+- Models will rotate every 10 seconds
+- Check browser console (F12) for any loading errors
+- If your model doesn't appear, try the other debugging tips below
+
+## Troubleshooting
+
+If your models don't appear:
+- Check browser console (F12) for error messages
+- Verify file paths are correct and files exist in the specified location
+- Try converting binary STL files to ASCII format
+- Reduce model complexity for better performance
+- Set `DEBUG = true` in 3d_hero.js to see detailed logs
+- Add more debug visualizations with the provided debug helpers
+
+Remember to reload the page after making changes to the JavaScript file. 

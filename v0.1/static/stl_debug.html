@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harry Potter STL Debug</title>
+    <style>
+        body { 
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 100;
+            pointer-events: none;
+        }
+        #stats {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 10px;
+            font-family: monospace;
+            z-index: 100;
+            max-width: 50%;
+            max-height: 200px;
+            overflow: auto;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        button {
+            padding: 8px 12px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Harry Potter STL Debug</div>
+    <div id="stats">Loading...</div>
+    <div id="controls">
+        <button id="wireframe">Toggle Wireframe</button>
+        <button id="rotation">Toggle Rotation</button>
+        <button id="axes">Toggle Axes</button>
+        <button id="bounding-box">Toggle Bounding Box</button>
+        <button id="fixPosition">Fix Position</button>
+    </div>
+
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.156.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.156.1/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+        let scene, camera, renderer, controls;
+        let model, axesHelper, boxHelper;
+        let autoRotate = true;
+        let wireframeMode = false;
+        
+        // Stats display
+        const stats = document.getElementById('stats');
+        
+        function log(message) {
+            console.log(message);
+            stats.innerHTML = message + '<br>' + stats.innerHTML.substring(0, 1000);
+        }
+        
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x333333);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(5, 5, 12);
+            camera.lookAt(0, 1.5, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+            document.body.appendChild(renderer.domElement);
+            
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.1;
+            controls.target.set(0, 1.5, 0);
+            controls.maxPolarAngle = Math.PI / 1.8; // Don't go below the horizon
+            controls.minPolarAngle = Math.PI / 8; // Don't go too high
+            
+            // Lights
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
+            hemiLight.position.set(0, 20, 0);
+            scene.add(hemiLight);
+            
+            // Primary directional light
+            const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+            dirLight.position.set(5, 10, 5);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.top = 10;
+            dirLight.shadow.camera.bottom = -10;
+            dirLight.shadow.camera.left = -10;
+            dirLight.shadow.camera.right = 10;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+            
+            // Add dedicated spotlights for the Harry Potter model
+            const spotlight = new THREE.SpotLight(0xffffcc, 3);
+            spotlight.position.set(0, 8, 5);
+            spotlight.angle = Math.PI / 5;
+            spotlight.penumbra = 0.5;
+            spotlight.distance = 25;
+            spotlight.castShadow = true;
+            scene.add(spotlight);
+            
+            // Add a secondary fill light
+            const fillLight = new THREE.SpotLight(0xffffcc, 1.5);
+            fillLight.position.set(5, 5, -3);
+            fillLight.angle = Math.PI / 6;
+            fillLight.penumbra = 0.7;
+            fillLight.distance = 20;
+            scene.add(fillLight);
+            
+            // Ground plane
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(100, 100),
+                new THREE.MeshPhongMaterial({ color: 0x999999, depthWrite: false })
+            );
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Grid
+            const grid = new THREE.GridHelper(100, 100);
+            grid.material.opacity = 0.2;
+            grid.material.transparent = true;
+            scene.add(grid);
+            
+            // Axes helper
+            axesHelper = new THREE.AxesHelper(5);
+            scene.add(axesHelper);
+            
+            // Reference object at origin
+            const origin = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            scene.add(origin);
+            
+            // Event handlers
+            window.addEventListener('resize', onWindowResize);
+            
+            document.getElementById('wireframe').addEventListener('click', toggleWireframe);
+            document.getElementById('rotation').addEventListener('click', toggleRotation);
+            document.getElementById('axes').addEventListener('click', toggleAxes);
+            document.getElementById('bounding-box').addEventListener('click', toggleBoundingBox);
+            document.getElementById('fixPosition').addEventListener('click', fixPosition);
+            
+            // Load STL model
+            loadModel();
+            
+            // Animation loop
+            animate();
+        }
+        
+        function loadModel() {
+            const loader = new STLLoader();
+            
+            // Add a button to switch between models
+            const switchButton = document.createElement('button');
+            switchButton.textContent = 'Switch to Right Model';
+            switchButton.addEventListener('click', () => {
+                const useRight = switchButton.textContent.includes('Right');
+                
+                if (useRight) {
+                    try {
+                        loadSTLFile('/static/models/harry_potter_right.stl');
+                        switchButton.textContent = 'Switch to Left Model';
+                    } catch (error) {
+                        log('Failed to load right model, using fallback');
+                        loadSTLFile('/static/models/fallback/cube.stl');
+                    }
+                } else {
+                    try {
+                        loadSTLFile('/static/models/harry_potter_left.stl');
+                        switchButton.textContent = 'Switch to Right Model';
+                    } catch (error) {
+                        log('Failed to load left model, using fallback');
+                        loadSTLFile('/static/models/fallback/cube.stl');
+                    }
+                }
+            });
+            
+            document.getElementById('controls').appendChild(switchButton);
+            
+            // Add a fallback button
+            const fallbackButton = document.createElement('button');
+            fallbackButton.textContent = 'Load Fallback Cube';
+            fallbackButton.addEventListener('click', () => {
+                loadSTLFile('/static/models/fallback/cube.stl');
+                log('Loaded fallback cube model');
+            });
+            
+            document.getElementById('controls').appendChild(fallbackButton);
+            
+            // Start with left model or fallback
+            try {
+                loadSTLFile('/static/models/harry_potter_left.stl');
+            } catch (error) {
+                log('Failed to load initial model, using fallback');
+                loadSTLFile('/static/models/fallback/cube.stl');
+            }
+            
+            function loadSTLFile(url) {
+                console.log('Loading model:', url);
+                
+                // Remove existing model if one exists
+                if (model) {
+                    scene.remove(model);
+                    if (boxHelper) {
+                        scene.remove(boxHelper);
+                    }
+                }
+                
+                // Create STL loader
+                const loader = new THREE.STLLoader();
+                
+                // Load the STL file
+                loader.load(url, function(geometry) {
+                    console.log('Model loaded with', geometry.attributes.position.count / 3, 'triangles');
+                    
+                    // Compute bounding box and sphere
+                    geometry.computeBoundingBox();
+                    geometry.computeBoundingSphere();
+                    
+                    const box = geometry.boundingBox;
+                    const sphere = geometry.boundingSphere;
+                    
+                    console.log('Bounding box:', 
+                        'width:', box.max.x - box.min.x,
+                        'height:', box.max.y - box.min.y,
+                        'depth:', box.max.z - box.min.z);
+                    console.log('Bounding sphere center:', sphere.center, 'radius:', sphere.radius);
+                    
+                    // Create a nice material
+                    const material = new THREE.MeshStandardMaterial({
+                        color: 0xFFD700, // Gold color
+                        metalness: 0.8,
+                        roughness: 0.2,
+                        emissive: 0x222200,
+                        emissiveIntensity: 0.3,
+                        flatShading: true,
+                        transparent: false,
+                        opacity: 1.0
+                    });
+                    
+                    // Create the mesh
+                    model = new THREE.Mesh(geometry, material);
+                    
+                    // Compute scale based on model dimensions
+                    const size = new THREE.Vector3();
+                    box.getSize(size);
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scaleFactor = 15 / maxDim; // Reduced from 30 to 15 for better size
+                    model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                    
+                    // Get the center
+                    const center = sphere.center;
+                    const scale = model.scale.x;
+                    
+                    // Position at true center with slight elevation
+                    model.position.set(-center.x * scale, -center.y * scale + 0.5, -center.z * scale);
+                    
+                    // Reset rotation except for slight tilt
+                    model.rotation.set(Math.PI / 20, 0, 0);
+                    
+                    // Add the model
+                    model.castShadow = true;
+                    scene.add(model);
+                    
+                    // Add bounding box helper
+                    boxHelper = new THREE.BoxHelper(model, 0xff0000);
+                    scene.add(boxHelper);
+                    
+                    // Create model center for spotlight targeting
+                    const modelCenter = new THREE.Vector3(-center.x * scale, -center.y * scale + 0.5, -center.z * scale);
+                    
+                    // Position axes at model center
+                    if (axesHelper) {
+                        scene.remove(axesHelper);
+                    }
+                    axesHelper = new THREE.AxesHelper(2);
+                    axesHelper.position.copy(modelCenter);
+                    scene.add(axesHelper);
+                    
+                    // Update spotlight targets
+                    scene.traverse(function(object) {
+                        if (object instanceof THREE.SpotLight) {
+                            const spotlightTarget = new THREE.Object3D();
+                            spotlightTarget.position.copy(modelCenter);
+                            scene.add(spotlightTarget);
+                            object.target = spotlightTarget;
+                        }
+                    });
+                    
+                    // Update camera to focus on model
+                    camera.position.set(5, 5, 12);
+                    controls.target.copy(modelCenter);
+                    controls.update();
+                    
+                    log('Model loaded and added to scene');
+                },
+                // Progress callback
+                function(xhr) {
+                    if (xhr.lengthComputable) {
+                        const percentComplete = xhr.loaded / xhr.total * 100;
+                        log(`Loading: ${Math.round(percentComplete)}%`);
+                    }
+                },
+                // Error callback
+                function(error) {
+                    console.error('Error loading STL:', error);
+                    log(`ERROR: Failed to load model. ${error.message || error}`);
+                    
+                    // Create a simple placeholder object to show something
+                    const geometry = new THREE.SphereGeometry(1, 16, 16);
+                    const material = new THREE.MeshBasicMaterial({color: 0xff0000, wireframe: true});
+                    model = new THREE.Mesh(geometry, material);
+                    scene.add(model);
+                });
+            }
+        }
+        
+        function toggleWireframe() {
+            if (!model) return;
+            
+            wireframeMode = !wireframeMode;
+            model.material.wireframe = wireframeMode;
+            log(`Wireframe mode: ${wireframeMode ? 'ON' : 'OFF'}`);
+        }
+        
+        function toggleRotation() {
+            autoRotate = !autoRotate;
+            log(`Auto-rotation: ${autoRotate ? 'ON' : 'OFF'}`);
+        }
+        
+        function toggleAxes() {
+            if (axesHelper) {
+                axesHelper.visible = !axesHelper.visible;
+                log(`Axes helper: ${axesHelper.visible ? 'VISIBLE' : 'HIDDEN'}`);
+            }
+        }
+        
+        function toggleBoundingBox() {
+            if (boxHelper) {
+                boxHelper.visible = !boxHelper.visible;
+                log(`Bounding box: ${boxHelper.visible ? 'VISIBLE' : 'HIDDEN'}`);
+            }
+        }
+        
+        function fixPosition() {
+            if (!model) {
+                console.log('No model to fix position');
+                return;
+            }
+            
+            // Reset all rotations and re-center
+            const geometry = model.geometry;
+            geometry.computeBoundingSphere();
+            const center = geometry.boundingSphere.center;
+            const scale = model.scale.x;
+            
+            // Create the model center vector
+            const modelCenter = new THREE.Vector3(-center.x * scale, -center.y * scale + 0.5, -center.z * scale);
+            
+            // Position the model properly
+            model.position.set(-center.x * scale, -center.y * scale + 0.5, -center.z * scale);
+            
+            // Reset rotation with a slight forward tilt
+            model.rotation.set(Math.PI / 20, 0, 0);
+            
+            // Position axes at model center
+            if (axesHelper) {
+                scene.remove(axesHelper);
+            }
+            axesHelper = new THREE.AxesHelper(2);
+            axesHelper.position.copy(modelCenter);
+            scene.add(axesHelper);
+            
+            // Update spotlight targets
+            scene.traverse(function(object) {
+                if (object instanceof THREE.SpotLight) {
+                    const spotlightTarget = new THREE.Object3D();
+                    spotlightTarget.position.copy(modelCenter);
+                    scene.add(spotlightTarget);
+                    object.target = spotlightTarget;
+                }
+            });
+            
+            // Update camera to focus on model
+            camera.position.set(5, 5, 12);
+            controls.target.copy(modelCenter);
+            controls.update();
+            
+            console.log('Model position fixed, centered at:', modelCenter);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update controls
+            controls.update();
+            
+            // Rotate model if enabled and loaded
+            if (autoRotate && model) {
+                model.rotation.y += 0.01;
+                if (boxHelper) boxHelper.update();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Initialize everything
+        init();
+    </script>
+</body>
+</html> 

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STL Model Test</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+        #container { width: 100%; max-width: 800px; margin: 0 auto; }
+        .model-test { 
+            margin-bottom: 20px; 
+            padding: 15px; 
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        h1, h2 { color: #333; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; }
+        .success { color: green; }
+        .error { color: red; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        .display-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .model-display {
+            flex: 1;
+            min-width: 300px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            height: 300px;
+            margin-top: 10px;
+        }
+        .controls {
+            margin-bottom: 10px;
+        }
+        .debug-info {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+        /* Add a grid background to make models more visible */
+        .render-container {
+            background-image: linear-gradient(#eee 1px, transparent 1px),
+                             linear-gradient(90deg, #eee 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>STL Model Loading Test</h1>
+        <p>This page tests if the STL models in the static directory are accessible.</p>
+        
+        <div class="model-test">
+            <h2>1. Testing harry_potter_left.stl</h2>
+            <button onclick="testModel('/static/models/harry_potter_left.stl', 'result1')">Test Load</button>
+            <pre id="result1">Click Test Load to check...</pre>
+        </div>
+        
+        <div class="model-test">
+            <h2>2. Testing harry_potter_right.stl</h2>
+            <button onclick="testModel('/static/models/harry_potter_right.stl', 'result2')">Test Load</button>
+            <pre id="result2">Click Test Load to check...</pre>
+        </div>
+        
+        <div class="model-test">
+            <h2>3. List All STL Files</h2>
+            <button onclick="listModels()">List STL Files</button>
+            <pre id="modelList">Click List Models to check...</pre>
+        </div>
+        
+        <div class="model-test">
+            <h2>4. Simple Three.js Test (No Controls)</h2>
+            <div class="controls">
+                <button onclick="testSimpleThreeJs('/static/models/harry_potter_left.stl')">Test Left Model</button>
+                <button onclick="testSimpleThreeJs('/static/models/harry_potter_right.stl')">Test Right Model</button>
+                <button onclick="toggleAxes('simple-container')">Toggle Axes</button>
+            </div>
+            <div id="simple-container" class="render-container" style="width: 100%; height: 300px;"></div>
+            <pre id="simple-result">Click a test button to check...</pre>
+            <div class="debug-info" id="debug-info"></div>
+        </div>
+        
+        <div class="model-test">
+            <h2>5. Debug Three.js STL Loader</h2>
+            <p>This test uses the same Three.js STL loader as the hero section.</p>
+            <div class="controls">
+                <button onclick="testThreeJsLoader('/static/models/harry_potter_left.stl', 'threejs-result')">Test Left Model</button>
+                <button onclick="testThreeJsLoader('/static/models/harry_potter_right.stl', 'threejs-result')">Test Right Model</button>
+                <button onclick="toggleAxes('canvas-container')">Toggle Axes</button>
+            </div>
+            <div id="canvas-container" class="render-container" style="width: 100%; height: 300px;"></div>
+            <pre id="threejs-result">Click a test button to check...</pre>
+        </div>
+    </div>
+    
+    <!-- Import Three.js for the STL loader test -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // Store references to scenes for axes toggling
+        const scenes = {};
+        
+        // Check if Three.js is loaded
+        document.getElementById('debug-info').textContent = 
+            `Three.js loaded: ${typeof THREE !== 'undefined' ? 'Yes' : 'No'}, ` +
+            `STLLoader: ${typeof THREE !== 'undefined' && typeof THREE.STLLoader !== 'undefined' ? 'Yes' : 'No'}, ` + 
+            `OrbitControls: ${typeof THREE !== 'undefined' && typeof THREE.OrbitControls !== 'undefined' ? 'Yes' : 'No'}`;
+        
+        function testModel(url, resultElementId) {
+            const resultElement = document.getElementById(resultElementId);
+            resultElement.innerHTML = "Loading...";
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const size = (blob.size / 1024).toFixed(2);
+                    resultElement.innerHTML = `<span class="success">✓ SUCCESS: Model loaded successfully (${size} KB)</span>`;
+                })
+                .catch(error => {
+                    resultElement.innerHTML = `<span class="error">✗ ERROR: ${error.message}</span>`;
+                });
+        }
+        
+        function listModels() {
+            const resultElement = document.getElementById('modelList');
+            resultElement.innerHTML = "Checking for models in the following locations:\n\n";
+            
+            const modelPaths = [
+                '/static/models/',
+                '/static/models/harry_potter_left.stl',
+                '/static/models/harry_potter_right.stl',
+                '/media/models/',
+                'models/'
+            ];
+            
+            let completedChecks = 0;
+            
+            modelPaths.forEach(path => {
+                fetch(path)
+                    .then(response => {
+                        const status = response.ok ? 
+                            `<span class="success">✓ Accessible</span>` : 
+                            `<span class="error">✗ Not accessible (${response.status})</span>`;
+                        resultElement.innerHTML += `${path}: ${status}\n`;
+                    })
+                    .catch(error => {
+                        resultElement.innerHTML += `${path}: <span class="error">✗ Error: ${error.message}</span>\n`;
+                    })
+                    .finally(() => {
+                        completedChecks++;
+                        if (completedChecks === modelPaths.length) {
+                            resultElement.innerHTML += "\nCheck complete.";
+                        }
+                    });
+            });
+        }
+        
+        function addAxesHelper(scene) {
+            // Add XYZ axes helper
+            const axesHelper = new THREE.AxesHelper(5);
+            axesHelper.userData.isAxesHelper = true;
+            scene.add(axesHelper);
+        }
+        
+        function toggleAxes(containerId) {
+            if (!scenes[containerId]) return;
+            
+            const scene = scenes[containerId];
+            
+            // Look for existing axes helper
+            let axesHelper = null;
+            scene.traverse(obj => {
+                if (obj.userData && obj.userData.isAxesHelper) {
+                    axesHelper = obj;
+                }
+            });
+            
+            if (axesHelper) {
+                scene.remove(axesHelper);
+            } else {
+                addAxesHelper(scene);
+            }
+        }
+        
+        function testSimpleThreeJs(url) {
+            const resultElement = document.getElementById('simple-result');
+            const container = document.getElementById('simple-container');
+            
+            resultElement.innerHTML = "Initializing basic Three.js scene...";
+            
+            try {
+                // Clear previous content
+                container.innerHTML = '';
+                
+                // Create basic scene
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xffffff);
+                scenes['simple-container'] = scene;
+                
+                // Camera - position further back and at an angle
+                const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+                camera.position.set(3, 3, 5);
+                camera.lookAt(0, 0, 0);
+                
+                // Renderer
+                const renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.localClippingEnabled = true;
+                renderer.shadowMap.enabled = true;
+                container.appendChild(renderer.domElement);
+                
+                // Lights
+                const ambientLight = new THREE.AmbientLight(0x404040, 1);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(5, 5, 5);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+                
+                // Add a grid to help with orientation
+                const gridHelper = new THREE.GridHelper(10, 10, 0x888888, 0xcccccc);
+                scene.add(gridHelper);
+                
+                // Add axes helper
+                addAxesHelper(scene);
+                
+                // DEBUG: Add a simple cube to test if rendering works at all
+                const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+                const boxMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+                const cube = new THREE.Mesh(boxGeometry, boxMaterial);
+                cube.position.set(0, 0.5, 0);
+                scene.add(cube);
+                
+                resultElement.innerHTML = "Scene created, loading STL...";
+                
+                // Load STL model
+                const loader = new THREE.STLLoader();
+                loader.load(
+                    url,
+                    function(geometry) {
+                        resultElement.innerHTML = "Model loaded, creating mesh...";
+                        console.log("STL geometry loaded:", geometry);
+                        
+                        if (!geometry || !geometry.attributes || !geometry.attributes.position) {
+                            resultElement.innerHTML = "<span class='error'>✗ ERROR: Invalid geometry data returned</span>";
+                            return;
+                        }
+                        
+                        // Create a more visible material
+                        const material = new THREE.MeshStandardMaterial({
+                            color: 0x2194ce,
+                            metalness: 0.5,
+                            roughness: 0.3,
+                            side: THREE.DoubleSide
+                        });
+                        
+                        const mesh = new THREE.Mesh(geometry, material);
+                        
+                        // Center and scale the model
+                        geometry.computeBoundingBox();
+                        const boundingBox = geometry.boundingBox;
+                        console.log("Model bounding box:", boundingBox);
+                        
+                        const center = new THREE.Vector3();
+                        boundingBox.getCenter(center);
+                        console.log("Model center:", center);
+                        
+                        mesh.position.set(-center.x, -center.y, -center.z);
+                        
+                        const size = boundingBox.getSize(new THREE.Vector3());
+                        console.log("Model size:", size);
+                        
+                        const maxDim = Math.max(size.x, size.y, size.z);
+                        const scale = 3 / maxDim;
+                        console.log("Using scale factor:", scale);
+                        
+                        mesh.scale.set(scale, scale, scale);
+                        
+                        // Add a slight Y offset to position the model just above the grid
+                        mesh.position.y += 0.1;
+                        
+                        mesh.castShadow = true;
+                        mesh.receiveShadow = true;
+                        scene.add(mesh);
+                        
+                        resultElement.innerHTML = "Mesh added to scene, starting animation...";
+                        console.log("Mesh added to scene:", mesh);
+                        
+                        // Simple rotation animation
+                        let rotationSpeed = 0.01;
+                        function animate() {
+                            requestAnimationFrame(animate);
+                            mesh.rotation.y += rotationSpeed;
+                            cube.rotation.y -= rotationSpeed;
+                            renderer.render(scene, camera);
+                        }
+                        animate();
+                        
+                        const vertexCount = geometry.attributes.position.count;
+                        resultElement.innerHTML = `<span class="success">✓ SUCCESS: Model loaded (${vertexCount} vertices)</span>`;
+                    },
+                    function(xhr) {
+                        if (xhr.lengthComputable) {
+                            const percentComplete = (xhr.loaded / xhr.total) * 100;
+                            resultElement.innerHTML = `Loading: ${Math.round(percentComplete)}%`;
+                        }
+                    },
+                    function(error) {
+                        resultElement.innerHTML = `<span class="error">✗ ERROR: ${error}</span>`;
+                        console.error("Error loading STL:", error);
+                    }
+                );
+            } catch (e) {
+                resultElement.innerHTML = `<span class="error">✗ EXCEPTION: ${e.message}</span>`;
+                console.error("Exception in Three.js setup:", e);
+            }
+        }
+        
+        function testThreeJsLoader(url, resultElementId) {
+            const resultElement = document.getElementById(resultElementId);
+            const container = document.getElementById('canvas-container');
+            
+            resultElement.innerHTML = "Initializing Three.js...";
+            
+            try {
+                // Clear previous content
+                container.innerHTML = '';
+                
+                // Create scene, camera, renderer
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xffffff);
+                scenes['canvas-container'] = scene;
+                
+                // Camera with better angle
+                const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+                camera.position.set(3, 3, 5);
+                camera.lookAt(0, 0, 0);
+                
+                const renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.localClippingEnabled = true; // Enable clipping planes
+                renderer.shadowMap.enabled = true;
+                container.appendChild(renderer.domElement);
+                
+                // Add lights for better visibility
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(5, 5, 5);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+                
+                const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                backLight.position.set(-5, 2, -5);
+                scene.add(backLight);
+                
+                // Add grid helper
+                const gridHelper = new THREE.GridHelper(10, 10, 0x888888, 0xcccccc);
+                scene.add(gridHelper);
+                
+                // Add axes helper
+                addAxesHelper(scene);
+                
+                // DEBUG: Add a visible marker at the origin
+                const sphereGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+                const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                scene.add(sphere);
+                
+                resultElement.innerHTML = "Scene set up, creating controls...";
+                
+                // Add orbit controls - only if they exist
+                let controls = null;
+                if (THREE.OrbitControls) {
+                    controls = new THREE.OrbitControls(camera, renderer.domElement);
+                    controls.enableDamping = true;
+                    controls.dampingFactor = 0.25;
+                    controls.enableZoom = true;
+                    resultElement.innerHTML = "Controls created, loading STL...";
+                } else {
+                    resultElement.innerHTML = "OrbitControls not available, continuing without controls...";
+                }
+                
+                // Load STL
+                const loader = new THREE.STLLoader();
+                try {
+                    loader.load(
+                        url,
+                        function(geometry) {
+                            resultElement.innerHTML = `Geometry loaded, creating mesh...`;
+                            console.log("STL geometry loaded in OrbitControls test:", geometry);
+                            
+                            if (!geometry || !geometry.attributes || !geometry.attributes.position) {
+                                resultElement.innerHTML = "<span class='error'>✗ ERROR: Invalid geometry data returned</span>";
+                                return;
+                            }
+                            
+                            // Create a more visible material
+                            const material = new THREE.MeshStandardMaterial({
+                                color: 0x009900,
+                                metalness: 0.3, 
+                                roughness: 0.4,
+                                side: THREE.DoubleSide
+                            });
+                            
+                            const mesh = new THREE.Mesh(geometry, material);
+                            
+                            // Center and scale the model
+                            geometry.computeBoundingBox();
+                            const boundingBox = geometry.boundingBox;
+                            console.log("Model bounding box:", boundingBox);
+                            
+                            const center = new THREE.Vector3();
+                            boundingBox.getCenter(center);
+                            console.log("Model center:", center);
+                            
+                            mesh.position.set(-center.x, -center.y, -center.z);
+                            
+                            const size = boundingBox.getSize(new THREE.Vector3());
+                            console.log("Model size:", size);
+                            
+                            const maxDim = Math.max(size.x, size.y, size.z);
+                            const scale = 3 / maxDim;
+                            console.log("Using scale factor:", scale);
+                            
+                            mesh.scale.set(scale, scale, scale);
+                            
+                            // Position just above grid
+                            mesh.position.y += 0.1;
+                            
+                            mesh.castShadow = true;
+                            mesh.receiveShadow = true;
+                            scene.add(mesh);
+                            
+                            resultElement.innerHTML = `Mesh added to scene, starting animation...`;
+                            console.log("Mesh added to scene with OrbitControls:", mesh);
+                            
+                            // Auto-rotate the model only if not using controls
+                            let autoRotate = controls ? false : true;
+                            
+                            function animate() {
+                                requestAnimationFrame(animate);
+                                if (autoRotate) {
+                                    mesh.rotation.y += 0.01;
+                                }
+                                sphere.rotation.y += 0.02;
+                                if (controls) controls.update();
+                                renderer.render(scene, camera);
+                            }
+                            animate();
+                            
+                            const fileSize = geometry.attributes.position.count * 9 / 1024;
+                            resultElement.innerHTML = `<span class="success">✓ SUCCESS: Model loaded and rendered with Three.js (${fileSize.toFixed(2)} KB vertices)</span>`;
+                        },
+                        function(xhr) {
+                            if (xhr.lengthComputable) {
+                                const percentComplete = (xhr.loaded / xhr.total) * 100;
+                                resultElement.innerHTML = `Loading: ${Math.round(percentComplete)}%`;
+                            }
+                        },
+                        function(error) {
+                            resultElement.innerHTML = `<span class="error">✗ ERROR loading with Three.js: ${error.message || 'Unknown error'}</span>`;
+                            console.error('Three.js STL Loader error:', error);
+                        }
+                    );
+                } catch (e) {
+                    resultElement.innerHTML = `<span class="error">✗ EXCEPTION in Three.js: ${e.message}</span>`;
+                    console.error('Exception in Three.js STL loading:', e);
+                }
+            } catch (e) {
+                resultElement.innerHTML = `<span class="error">✗ EXCEPTION in Three.js setup: ${e.message}</span>`;
+                console.error('Exception in Three.js setup:', e);
+            }
+        }
+    </script>
+</body>
+</html> 

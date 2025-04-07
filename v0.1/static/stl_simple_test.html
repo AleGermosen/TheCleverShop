@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple STL Test</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+        #info { 
+            position: absolute; 
+            top: 10px; 
+            width: 100%; 
+            text-align: center; 
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 5px;
+            z-index: 100;
+        }
+        canvas { display: block; }
+        #status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            font-family: monospace;
+            z-index: 100;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 16px;
+        }
+        #controls {
+            position: absolute;
+            top: 40px;
+            left: 10px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Simple STL Model Test</div>
+    <div id="status">Initializing...</div>
+    <div id="controls">
+        <button id="left-model">Load Left Model</button>
+        <button id="right-model">Load Right Model</button>
+        <button id="toggle-wireframe">Toggle Wireframe</button>
+        <button id="toggle-box">Toggle Bounding Box</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // Global variables
+        let scene, camera, renderer, controls;
+        let currentMesh = null;
+        let wireframe = false;
+        let bbox = null;
+        let bboxHelper = null;
+        
+        // Status update function
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+            console.log(message);
+        }
+
+        // Initialize Three.js scene
+        function init() {
+            updateStatus('Setting up Three.js...');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x333333);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                75, 
+                window.innerWidth / window.innerHeight, 
+                0.1, 
+                1000
+            );
+            camera.position.set(2, 2, 2);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+            
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x404040, 2);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(1, 2, 3);
+            scene.add(directionalLight);
+            
+            // Add a grid to help with orientation
+            const gridHelper = new THREE.GridHelper(10, 10);
+            scene.add(gridHelper);
+            
+            // Axes helper
+            const axesHelper = new THREE.AxesHelper(3);
+            scene.add(axesHelper);
+            
+            // Add a reference sphere at the origin
+            const sphere = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            scene.add(sphere);
+            
+            // Controls
+            if (typeof THREE.OrbitControls !== 'undefined') {
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.25;
+            } else {
+                updateStatus('WARNING: OrbitControls not available');
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Add event listeners for buttons
+            document.getElementById('left-model').addEventListener('click', () => {
+                loadSTL('/static/models/harry_potter_left.stl');
+            });
+            
+            document.getElementById('right-model').addEventListener('click', () => {
+                loadSTL('/static/models/harry_potter_right.stl');
+            });
+            
+            document.getElementById('toggle-wireframe').addEventListener('click', toggleWireframe);
+            document.getElementById('toggle-box').addEventListener('click', toggleBoundingBox);
+            
+            // Start animation loop
+            animate();
+            
+            updateStatus('Scene initialized. Click a button to load a model.');
+        }
+        
+        // Window resize handler
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            if (controls) controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Load STL model
+        function loadSTL(url) {
+            updateStatus(`Loading STL from ${url}...`);
+            
+            // Create STL loader
+            const loader = new THREE.STLLoader();
+            
+            // Remove current mesh if exists
+            if (currentMesh) {
+                scene.remove(currentMesh);
+                currentMesh = null;
+            }
+            
+            // Remove bounding box if exists
+            if (bboxHelper) {
+                scene.remove(bboxHelper);
+                bboxHelper = null;
+            }
+            
+            try {
+                loader.load(
+                    url,
+                    (geometry) => {
+                        updateStatus('Model loaded, processing geometry...');
+                        console.log('Geometry loaded:', geometry);
+                        
+                        // Check if geometry is valid
+                        if (!geometry.attributes || !geometry.attributes.position) {
+                            updateStatus('ERROR: Invalid geometry data!');
+                            return;
+                        }
+                        
+                        // Calculate bounding box
+                        geometry.computeBoundingBox();
+                        bbox = geometry.boundingBox;
+                        
+                        if (!bbox) {
+                            updateStatus('ERROR: Could not compute bounding box!');
+                            return;
+                        }
+                        
+                        console.log('Bounding box:', bbox);
+                        
+                        // Get center and size
+                        const center = new THREE.Vector3();
+                        bbox.getCenter(center);
+                        
+                        const size = new THREE.Vector3();
+                        bbox.getSize(size);
+                        
+                        // Calculate scale to normalize size
+                        const maxDim = Math.max(size.x, size.y, size.z);
+                        const scale = 1.0 / maxDim;
+                        
+                        console.log('Center:', center);
+                        console.log('Size:', size);
+                        console.log('Scale factor:', scale);
+                        
+                        // Create material - two versions for easy toggling
+                        const normalMaterial = new THREE.MeshStandardMaterial({
+                            color: 0x00aaff,
+                            metalness: 0.2,
+                            roughness: 0.5,
+                            flatShading: true
+                        });
+                        
+                        const wireframeMaterial = new THREE.MeshBasicMaterial({
+                            color: 0xffff00,
+                            wireframe: true
+                        });
+                        
+                        // Create mesh with normal material initially
+                        currentMesh = new THREE.Mesh(geometry, wireframe ? wireframeMaterial : normalMaterial);
+                        
+                        // Center the mesh using negative center values
+                        currentMesh.position.set(-center.x, -center.y, -center.z);
+                        
+                        // Apply scaling for normalization
+                        currentMesh.scale.set(scale, scale, scale);
+                        
+                        // Add to scene
+                        scene.add(currentMesh);
+                        
+                        // Show bounding box
+                        bboxHelper = new THREE.Box3Helper(bbox, 0xff0000);
+                        scene.add(bboxHelper);
+                        
+                        // Update camera to view the model
+                        const distance = 2;
+                        camera.position.set(distance, distance, distance);
+                        camera.lookAt(0, 0, 0);
+                        
+                        updateStatus(`Model loaded successfully: ${geometry.attributes.position.count} vertices`);
+                    },
+                    (xhr) => {
+                        if (xhr.lengthComputable) {
+                            const percentComplete = (xhr.loaded / xhr.total) * 100;
+                            updateStatus(`Loading: ${Math.round(percentComplete)}%`);
+                        }
+                    },
+                    (error) => {
+                        updateStatus(`Error loading STL: ${error.message || 'Unknown error'}`);
+                        console.error('Error loading STL:', error);
+                    }
+                );
+            } catch (error) {
+                updateStatus(`Exception in STL loading: ${error.message}`);
+                console.error('Exception in STL loading:', error);
+            }
+        }
+        
+        // Toggle wireframe
+        function toggleWireframe() {
+            if (!currentMesh) {
+                updateStatus('No model loaded!');
+                return;
+            }
+            
+            wireframe = !wireframe;
+            
+            if (wireframe) {
+                currentMesh.material = new THREE.MeshBasicMaterial({
+                    color: 0xffff00,
+                    wireframe: true
+                });
+            } else {
+                currentMesh.material = new THREE.MeshStandardMaterial({
+                    color: 0x00aaff,
+                    metalness: 0.2,
+                    roughness: 0.5,
+                    flatShading: true
+                });
+            }
+            
+            updateStatus(`Wireframe mode: ${wireframe ? 'ON' : 'OFF'}`);
+        }
+        
+        // Toggle bounding box
+        function toggleBoundingBox() {
+            if (!bboxHelper) {
+                updateStatus('No bounding box to toggle!');
+                return;
+            }
+            
+            bboxHelper.visible = !bboxHelper.visible;
+            updateStatus(`Bounding box: ${bboxHelper.visible ? 'VISIBLE' : 'HIDDEN'}`);
+        }
+        
+        // Initialize the scene when the page is loaded
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html> 

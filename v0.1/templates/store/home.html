@@ -13,21 +13,51 @@
     
     /* Hero section styling */
     .hero-section {
-        background: linear-gradient(135deg, rgba(83, 109, 254, 0.9), rgba(61, 90, 254, 0.75)), url('https://source.unsplash.com/random/1600x900/?ecommerce') no-repeat center center;
-        background-size: cover;
+        position: relative;
         color: white;
-        padding: 140px 0 160px;
-        margin-top: -20px; /* Negative margin to pull up the hero section */
+        padding: 0;
+        margin-top: -20px;
         margin-bottom: 2rem;
         border-radius: 0 0 30px 30px;
         overflow: hidden;
+        background: linear-gradient(135deg, #2b2b2b, #1a1a1a);
+        height: 600px;
+    }
+    
+    /* Canvas container */
+    #hero-canvas-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+    
+    .hero-content {
         position: relative;
+        z-index: 1;
+        padding: 140px 0;
+        background: linear-gradient(90deg, 
+            rgba(0, 0, 0, 0.7) 0%, 
+            rgba(0, 0, 0, 0.4) 50%, 
+            rgba(0, 0, 0, 0) 100%);
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     
     .hero-section h1 {
         font-weight: 700;
         margin-bottom: 1.5rem;
         font-size: 3.5rem;
+        background: linear-gradient(90deg, #ffffff, #b6b6b6);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     
     .hero-section .lead {
@@ -35,6 +65,7 @@
         font-size: 1.5rem;
         margin-bottom: 2.5rem;
         color: rgba(255, 255, 255, 0.9);
+        max-width: 600px;
     }
     
     .hero-section .btn-primary {
@@ -48,51 +79,63 @@
         transition: all 0.3s;
     }
     
-    .hero-section .btn-primary:hover {
+    .hero-section .btn-group {
+        display: flex;
+        gap: 15px;
+    }
+    
+    .hero-section .btn-outline-light {
+        padding: 1rem 2.5rem;
+        font-size: 1.25rem;
+        border-radius: 50px;
+        font-weight: 600;
+        background-color: transparent;
+        transition: all 0.3s;
+    }
+    
+    .hero-section .btn-primary:hover, 
+    .hero-section .btn-outline-light:hover {
         transform: translateY(-3px);
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
     }
     
-    .floating-shapes {
+    .layer-badge {
         position: absolute;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        left: 0;
-        z-index: 0;
-        overflow: hidden;
+        top: 30px;
+        right: 30px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 30px;
+        z-index: 2;
+        font-size: 14px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
     
-    .shape {
-        position: absolute;
-        background-color: rgba(255, 255, 255, 0.1);
+    .layer-badge .layer-indicator {
+        width: 10px;
+        height: 10px;
+        background: #4CAF50;
         border-radius: 50%;
+        animation: pulse 1.5s infinite;
     }
     
-    .shape-1 {
-        width: 200px;
-        height: 200px;
-        top: -100px;
-        right: 10%;
-    }
-    
-    .shape-2 {
-        width: 150px;
-        height: 150px;
-        bottom: -50px;
-        left: 15%;
-    }
-    
-    .shape-3 {
-        width: 80px;
-        height: 80px;
-        top: 30%;
-        left: 5%;
-    }
-    
-    .hero-content {
-        position: relative;
-        z-index: 1;
+    @keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            opacity: 0.7;
+        }
+        50% {
+            transform: scale(1.1);
+            opacity: 1;
+        }
+        100% {
+            transform: scale(0.95);
+            opacity: 0.7;
+        }
     }
     
     /* Product badge */
@@ -189,19 +232,158 @@
 </style>
 {% endblock %}
 
+{% block extra_js %}
+<!-- Import Three.js library -->
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.156.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.156.1/examples/jsm/"
+    }
+}
+</script>
+
+<!-- Legacy fallback for older browsers -->
+<script nomodule src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script nomodule src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+<script nomodule src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.min.js"></script>
+
+<!-- Hero section script -->
+<script type="module" src="{% static 'js/3d_hero.js' %}"></script>
+
+<!-- Category image cycling script -->
+<script>
+    // Set fixed height for category image containers to reduce empty space
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fix the height of category image containers
+        document.querySelectorAll('.category-card .category-image-container').forEach(function(container) {
+            container.style.height = '140px';
+            container.style.minHeight = '140px';
+            container.style.maxHeight = '140px';
+        });
+        
+        // Set larger height for product card images
+        document.querySelectorAll('.product-card .category-image-container').forEach(function(container) {
+            container.style.height = '200px';
+            container.style.minHeight = '200px';
+            container.style.maxHeight = '200px';
+        });
+        
+        // Reduce top padding in card bodies
+        document.querySelectorAll('.category-card .card-body').forEach(function(cardBody) {
+            cardBody.style.paddingTop = '0.5rem';
+        });
+        
+        // Increase padding in product card bodies
+        document.querySelectorAll('.product-card .card-body').forEach(function(cardBody) {
+            cardBody.style.paddingTop = '0.75rem';
+            cardBody.style.paddingBottom = '1rem';
+        });
+    });
+
+    // Preload all category images and initialize them when ready
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.category-image-cycler').forEach(function(container) {
+            // Get all the real images (not placeholders)
+            const images = Array.from(container.querySelectorAll('img.category-image'));
+            const placeholder = container.querySelector('.image-placeholder');
+            
+            if (images.length === 0) {
+                // No images to load, keep placeholder visible
+                return;
+            }
+            
+            // Count loaded images
+            let loadedImages = 0;
+            
+            // Function to check if all images loaded
+            function checkAllImagesLoaded() {
+                loadedImages++;
+                if (loadedImages === images.length) {
+                    // All images loaded, hide placeholder and show first real image
+                    if (placeholder) {
+                        placeholder.classList.remove('active');
+                    }
+                    if (images[0]) {
+                        images[0].classList.add('active');
+                    }
+                }
+            }
+            
+            // Set up load event for each image
+            images.forEach(function(img) {
+                if (img.complete) {
+                    checkAllImagesLoaded();
+                } else {
+                    img.addEventListener('load', checkAllImagesLoaded);
+                    img.addEventListener('error', checkAllImagesLoaded); // Also count errors
+                }
+            });
+        });
+    });
+
+    // Function to cycle through category images
+    function cycleImages() {
+        document.querySelectorAll('.category-image-cycler').forEach(function(container) {
+            // Only work with actual <img> images (not placeholders)
+            const images = Array.from(container.querySelectorAll('img.category-image'));
+            if (images.length <= 1) return; // Skip if only one or no real images
+            
+            // Find active image and make it inactive
+            const activeImage = container.querySelector('.category-image.active:not(.image-placeholder)');
+            if (!activeImage) {
+                // If no active image, set the first one as active
+                if (images.length > 0) {
+                    images[0].classList.add('active');
+                }
+                return;
+            }
+            
+            activeImage.classList.remove('active');
+            
+            // Find next image or loop back to first
+            const currentIndex = images.indexOf(activeImage);
+            const nextIndex = (currentIndex + 1) % images.length;
+            const nextImage = images[nextIndex];
+            
+            // Make next image active
+            if (nextImage) {
+                nextImage.classList.add('active');
+            }
+        });
+    }
+    
+    // Start cycling images after a short delay to allow initial loading
+    if (document.querySelectorAll('.category-image-cycler').length > 0) {
+        // First cycle immediately after page loads
+        setTimeout(cycleImages, 1000);
+        // Then set up regular cycling
+        setInterval(cycleImages, 5000); // Change image every 5 seconds
+    }
+</script>
+{% endblock %}
+
 {% block content %}
-<!-- Hero Section -->
-<section class="hero-section position-relative mb-3 mt-0">
-    <div class="floating-shapes">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-        <div class="shape shape-3"></div>
+<!-- Hero Section with Three.js -->
+<section class="hero-section">
+    <div id="hero-canvas-container"></div>
+    <div class="layer-badge">
+        <span class="layer-indicator"></span>
+        <span>3D Printing in Progress</span>
     </div>
-    <div class="container px-4 px-lg-5">
-        <div class="text-center hero-content">
-            <h1 class="display-3">Discover Amazing Products</h1>
-            <p class="lead mb-4">Find everything you need with incredible deals and exclusive offers</p>
-            <a class="btn btn-primary btn-lg" href="{% url 'store:product_list' %}">Shop Now</a>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-8 col-lg-6">
+                <div class="hero-content">
+                    <h1>Welcome to <br> the Clever Shop</h1>
+                    <p class="lead">Unique personalized gifts created through the magic of 3D printing technology.</p>
+                    <div class="btn-group">
+                        <a href="{% url 'store:product_list' %}" class="btn btn-primary">Shop Now</a>
+                        <a href="{% url 'store:product_list' %}" class="btn btn-outline-light">Learn More</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </section>
@@ -409,116 +591,4 @@
         </div>
     </div>
 </section>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    // Set fixed height for category image containers to reduce empty space
-    document.addEventListener('DOMContentLoaded', function() {
-        // Fix the height of category image containers
-        document.querySelectorAll('.category-card .category-image-container').forEach(function(container) {
-            container.style.height = '140px';
-            container.style.minHeight = '140px';
-            container.style.maxHeight = '140px';
-        });
-        
-        // Set larger height for product card images
-        document.querySelectorAll('.product-card .category-image-container').forEach(function(container) {
-            container.style.height = '200px';
-            container.style.minHeight = '200px';
-            container.style.maxHeight = '200px';
-        });
-        
-        // Reduce top padding in card bodies
-        document.querySelectorAll('.category-card .card-body').forEach(function(cardBody) {
-            cardBody.style.paddingTop = '0.5rem';
-        });
-        
-        // Increase padding in product card bodies
-        document.querySelectorAll('.product-card .card-body').forEach(function(cardBody) {
-            cardBody.style.paddingTop = '0.75rem';
-            cardBody.style.paddingBottom = '1rem';
-        });
-    });
-
-    // Preload all category images and initialize them when ready
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.category-image-cycler').forEach(function(container) {
-            // Get all the real images (not placeholders)
-            const images = Array.from(container.querySelectorAll('img.category-image'));
-            const placeholder = container.querySelector('.image-placeholder');
-            
-            if (images.length === 0) {
-                // No images to load, keep placeholder visible
-                return;
-            }
-            
-            // Count loaded images
-            let loadedImages = 0;
-            
-            // Function to check if all images loaded
-            function checkAllImagesLoaded() {
-                loadedImages++;
-                if (loadedImages === images.length) {
-                    // All images loaded, hide placeholder and show first real image
-                    if (placeholder) {
-                        placeholder.classList.remove('active');
-                    }
-                    if (images[0]) {
-                        images[0].classList.add('active');
-                    }
-                }
-            }
-            
-            // Set up load event for each image
-            images.forEach(function(img) {
-                if (img.complete) {
-                    checkAllImagesLoaded();
-                } else {
-                    img.addEventListener('load', checkAllImagesLoaded);
-                    img.addEventListener('error', checkAllImagesLoaded); // Also count errors
-                }
-            });
-        });
-    });
-
-    // Function to cycle through category images
-    function cycleImages() {
-        document.querySelectorAll('.category-image-cycler').forEach(function(container) {
-            // Only work with actual <img> images (not placeholders)
-            const images = Array.from(container.querySelectorAll('img.category-image'));
-            if (images.length <= 1) return; // Skip if only one or no real images
-            
-            // Find active image and make it inactive
-            const activeImage = container.querySelector('.category-image.active:not(.image-placeholder)');
-            if (!activeImage) {
-                // If no active image, set the first one as active
-                if (images.length > 0) {
-                    images[0].classList.add('active');
-                }
-                return;
-            }
-            
-            activeImage.classList.remove('active');
-            
-            // Find next image or loop back to first
-            const currentIndex = images.indexOf(activeImage);
-            const nextIndex = (currentIndex + 1) % images.length;
-            const nextImage = images[nextIndex];
-            
-            // Make next image active
-            if (nextImage) {
-                nextImage.classList.add('active');
-            }
-        });
-    }
-    
-    // Start cycling images after a short delay to allow initial loading
-    if (document.querySelectorAll('.category-image-cycler').length > 0) {
-        // First cycle immediately after page loads
-        setTimeout(cycleImages, 1000);
-        // Then set up regular cycling
-        setInterval(cycleImages, 5000); // Change image every 5 seconds
-    }
-</script>
 {% endblock %} 

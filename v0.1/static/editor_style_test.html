@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Editor Style Test</title>
+    <style>
+        body { 
+            margin: 0;
+            overflow: hidden;
+            background-color: #1e1e1e;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        #info { 
+            position: absolute; 
+            top: 10px; 
+            width: 100%; 
+            text-align: center; 
+            z-index: 100;
+            color: white;
+        }
+        #container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 5px 10px;
+            font-family: monospace;
+            z-index: 100;
+            border-radius: 4px;
+        }
+        #controls {
+            position: absolute;
+            top: 40px;
+            left: 10px;
+            z-index: 100;
+        }
+        button {
+            background: #2c2c2c;
+            color: white;
+            border: 1px solid #444;
+            padding: 8px 16px;
+            margin: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #444;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info">Three.js Editor Style STL Test</div>
+    <div id="status">Initializing...</div>
+    <div id="controls">
+        <button id="load-left">Load Left Model</button>
+        <button id="load-right">Load Right Model</button>
+        <button id="toggle-axes">Toggle Axes</button>
+        <button id="toggle-ground">Toggle Ground</button>
+        <button id="reset-camera">Reset Camera</button>
+    </div>
+
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.156.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.156.1/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+        import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+        // Global variables
+        let container, camera, scene, renderer, controls;
+        let ground, axes;
+        let currentModel = null;
+
+        function log(message) {
+            console.log(message);
+            document.getElementById('status').textContent = message;
+        }
+
+        function init() {
+            // Container
+            container = document.getElementById('container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            scene.fog = new THREE.Fog(0x222222, 10, 50);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 1000);
+            camera.position.set(3, 2, 3);
+            camera.lookAt(new THREE.Vector3());
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
+            hemisphereLight.position.set(0, 20, 0);
+            scene.add(hemisphereLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
+            directionalLight.position.set(5, 5, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.camera.top = 2;
+            directionalLight.shadow.camera.bottom = -2;
+            directionalLight.shadow.camera.left = -2;
+            directionalLight.shadow.camera.right = 2;
+            directionalLight.shadow.mapSize.set(1024, 1024);
+            scene.add(directionalLight);
+
+            // Ground
+            ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(30, 30),
+                new THREE.MeshPhongMaterial({
+                    color: 0x999999,
+                    depthWrite: false
+                })
+            );
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Grid
+            const grid = new THREE.GridHelper(30, 30, 0x444444, 0x444444);
+            grid.material.opacity = 0.5;
+            grid.material.transparent = true;
+            scene.add(grid);
+
+            // Axes helper
+            axes = new THREE.AxesHelper(5);
+            scene.add(axes);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.damping = 0.2;
+            controls.addEventListener('change', render);
+
+            // Add reference sphere at origin
+            const referenceSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(0.05, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            scene.add(referenceSphere);
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+            document.getElementById('load-left').addEventListener('click', () => loadSTL('/static/models/harry_potter_left.stl'));
+            document.getElementById('load-right').addEventListener('click', () => loadSTL('/static/models/harry_potter_right.stl'));
+            document.getElementById('toggle-axes').addEventListener('click', toggleAxes);
+            document.getElementById('toggle-ground').addEventListener('click', toggleGround);
+            document.getElementById('reset-camera').addEventListener('click', resetCamera);
+
+            log('Scene initialized. Click "Load Left Model" or "Load Right Model" to begin.');
+            
+            // Start animation loop
+            animate();
+        }
+
+        function loadSTL(url) {
+            log(`Loading model from ${url}...`);
+            
+            // Remove current model if it exists
+            if (currentModel) {
+                scene.remove(currentModel);
+                currentModel = null;
+            }
+            
+            const loader = new STLLoader();
+            
+            loader.load(
+                url,
+                function (geometry) {
+                    log('Model loaded, preparing mesh...');
+                    
+                    // Editor-style material (similar to Three.js editor defaults)
+                    const material = new THREE.MeshStandardMaterial({
+                        color: 0xdddddd,
+                        metalness: 0.3,
+                        roughness: 0.4,
+                        flatShading: true
+                    });
+
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    
+                    // Auto-center the model (editor style)
+                    geometry.computeBoundingSphere();
+                    const center = geometry.boundingSphere.center;
+                    
+                    mesh.position.set(-center.x, -center.y, -center.z);
+
+                    // Handle scale
+                    geometry.computeBoundingBox();
+                    const box = geometry.boundingBox;
+                    const size = new THREE.Vector3();
+                    box.getSize(size);
+                    
+                    // Use a more sensible scale factor (based on editor behavior)
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scaleFactor = 1.0 / maxDim;
+                    
+                    // Only scale the model if it's very large or very small
+                    if (maxDim > 5 || maxDim < 0.5) {
+                        mesh.scale.multiplyScalar(scaleFactor);
+                    }
+                    
+                    // Position slightly above ground
+                    if (mesh.position.y === 0) {
+                        const bbox = new THREE.Box3().setFromObject(mesh);
+                        const height = bbox.max.y - bbox.min.y;
+                        mesh.position.y = height / 2;
+                    }
+                    
+                    scene.add(mesh);
+                    currentModel = mesh;
+                    
+                    // Adjust camera to view model
+                    fitCameraToModel(mesh);
+                    
+                    log(`Model loaded successfully with ${geometry.attributes.position.count} vertices`);
+                },
+                function (xhr) {
+                    if (xhr.lengthComputable) {
+                        const percentComplete = xhr.loaded / xhr.total * 100;
+                        log(`Loading: ${Math.round(percentComplete)}%`);
+                    }
+                },
+                function (error) {
+                    log(`Error loading model: ${error.message || 'Unknown error'}`);
+                    console.error('Error:', error);
+                }
+            );
+        }
+
+        function fitCameraToModel(model) {
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            
+            const maxSize = Math.max(size.x, size.y, size.z);
+            const fitHeightDistance = maxSize / (2 * Math.tan(Math.PI * camera.fov / 360));
+            const fitWidthDistance = fitHeightDistance / camera.aspect;
+            const distance = 1.2 * Math.max(fitHeightDistance, fitWidthDistance);
+            
+            const direction = controls.target.clone()
+                .sub(camera.position)
+                .normalize()
+                .multiplyScalar(distance);
+            
+            controls.maxDistance = distance * 10;
+            controls.target.copy(center);
+            
+            camera.near = distance / 100;
+            camera.far = distance * 100;
+            camera.updateProjectionMatrix();
+            
+            camera.position.copy(controls.target).sub(direction);
+            
+            controls.update();
+        }
+
+        function toggleAxes() {
+            axes.visible = !axes.visible;
+            log(`Axes ${axes.visible ? 'visible' : 'hidden'}`);
+        }
+
+        function toggleGround() {
+            ground.visible = !ground.visible;
+            log(`Ground ${ground.visible ? 'visible' : 'hidden'}`);
+        }
+
+        function resetCamera() {
+            camera.position.set(3, 2, 3);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            log('Camera reset');
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            render();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            render();
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        // Initialize everything
+        init();
+    </script>
+</body>
+</html> 
