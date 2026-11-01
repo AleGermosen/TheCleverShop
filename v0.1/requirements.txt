@@ -7,4 +7,5 @@ django-allauth==0.61.1
 django-admin-sortable2==2.1.10
 stripe==7.12.0
 numpy==1.26.4
-numpy-stl==3.0.1 
+numpy-stl==3.0.1
+gunicorn==21.2.0 

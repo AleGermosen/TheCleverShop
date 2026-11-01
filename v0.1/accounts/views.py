@@ -54,6 +54,11 @@ def register(request):
             login(request, user)
             messages.success(request, 'Registration successful! Welcome to CleverCupid.')
             return redirect('store:home')
+        else:
+            # Add form errors as messages for better visibility
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = CustomUserCreationForm()
     return render(request, 'accounts/register.html', {'form': form})

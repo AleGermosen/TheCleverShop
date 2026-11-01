@@ -12,6 +12,18 @@ import stripe
 
 from .models import Category, Product, Cart, CartItem, Order, OrderItem, ShippingAddress, ProductSize
 from .forms import ShippingAddressForm
+from .cart_cookie import (
+    get_cart_from_cookie,
+    save_cart_to_cookie,
+    clear_cart_cookie,
+    get_cart_count_from_cookie,
+    get_cart_items_from_cookie,
+    cart_subtotal_from_cookie,
+    add_item_to_cookie_cart,
+    update_item_in_cookie_cart,
+    remove_item_from_cookie_cart,
+    CART_COOKIE_NAME,
+)
 
 def home(request):
     featured_products = Product.objects.filter(featured=True)[:8]
@@ -142,49 +154,73 @@ def category_detail(request, slug):
     })
 
 def cart(request):
-    cart, created = Cart.objects.get_or_create(user=request.user)
-    cart_items = CartItem.objects.filter(cart=cart)
-    
-    # Calculate totals
-    subtotal = sum(item.total_price for item in cart_items)
-    shipping_cost = Decimal('0.00') if subtotal >= 50 else Decimal('5.00')
-    tax_rate = Decimal('0.10')  # 10% tax rate
-    tax_amount = subtotal * tax_rate
-    total = subtotal + shipping_cost + tax_amount
-    
-    return render(request, 'store/cart.html', {
-        'cart_items': cart_items,
-        'cart_total': subtotal,
-        'shipping_cost': shipping_cost,
-        'tax_amount': tax_amount,
-        'total_amount': total,
-        'cart_total_with_shipping': total
-    })
+    if request.user.is_authenticated:
+        # Authenticated user: database-backed cart
+        cart_obj, created = Cart.objects.get_or_create(user=request.user)
+        cart_items = CartItem.objects.filter(cart=cart_obj)
 
-@login_required
+        # Calculate totals
+        subtotal = sum(item.total_price for item in cart_items)
+        shipping_cost = Decimal('0.00') if subtotal >= 50 else Decimal('5.00')
+        tax_rate = Decimal('0.10')  # 10% tax rate
+        tax_amount = subtotal * tax_rate
+        total = subtotal + shipping_cost + tax_amount
+
+        return render(request, 'store/cart.html', {
+            'cart_items': cart_items,
+            'cart_total': subtotal,
+            'shipping_cost': shipping_cost,
+            'tax_amount': tax_amount,
+            'total_amount': total,
+            'cart_total_with_shipping': total,
+            'is_guest_cart': False,
+        })
+    else:
+        # Guest user: cookie-backed cart
+        cart_items = get_cart_items_from_cookie(request)
+        subtotal = cart_subtotal_from_cookie(request)
+        shipping_cost = Decimal('0.00') if subtotal >= 50 else Decimal('5.00')
+        tax_rate = Decimal('0.10')
+        tax_amount = subtotal * tax_rate
+        total = subtotal + shipping_cost + tax_amount
+
+        response = render(request, 'store/cart.html', {
+            'cart_items': cart_items,
+            'cart_total': subtotal,
+            'shipping_cost': shipping_cost,
+            'tax_amount': tax_amount,
+            'total_amount': total,
+            'cart_total_with_shipping': total,
+            'is_guest_cart': True,
+        })
+
+        # Ensure the cookie exists even if empty
+        if CART_COOKIE_NAME not in request.COOKIES:
+            response = save_cart_to_cookie(response, {"items": []})
+        return response
+
 @require_POST
 def add_to_cart(request, product_id):
     product = get_object_or_404(Product, id=product_id)
-    cart, created = Cart.objects.get_or_create(user=request.user)
     quantity = int(request.POST.get('quantity', 1))
     size_id = request.POST.get('size_id')
     selected_size = None
-    
+
     # Check if size was selected and validate it
     if size_id:
         try:
             selected_size = get_object_or_404(ProductSize, id=size_id, product=product)
-            
+
             # Check if selected size is in stock
             if not selected_size.is_in_stock:
                 messages.error(request, f"Sorry, {product.name} in size {selected_size.get_size_display()} is out of stock.")
                 return redirect('store:product_detail', slug=product.slug)
-                
-            # Make sure requested quantity doesn't exceed stock for the size
+
+            # Make sure requested quantity does not exceed stock for the size
             if quantity > selected_size.stock:
                 messages.warning(request, f"Only {selected_size.stock} units available for {selected_size.get_size_display()}. Quantity adjusted.")
                 quantity = selected_size.stock
-                
+
         except (ProductSize.DoesNotExist, ValueError):
             messages.error(request, "Invalid size selection.")
             return redirect('store:product_detail', slug=product.slug)
@@ -193,132 +229,191 @@ def add_to_cart(request, product_id):
         if product.has_sizes:
             messages.error(request, "Please select a size.")
             return redirect('store:product_detail', slug=product.slug)
-        
+
         # Check product stock if not using sizes
         if quantity > product.stock:
             messages.warning(request, f"Only {product.stock} units available. Quantity adjusted.")
             quantity = product.stock
-    
-    # Check if product with same size is already in cart
-    cart_item = None
-    try:
-        if selected_size:
-            cart_item = CartItem.objects.get(cart=cart, product=product, size=selected_size)
-        else:
-            cart_item = CartItem.objects.get(cart=cart, product=product, size=None)
-    except CartItem.DoesNotExist:
-        # Item not in cart, create new one
-        cart_item = CartItem.objects.create(
-            cart=cart,
-            product=product,
-            size=selected_size,
-            quantity=quantity
-        )
-    else:
-        # Item exists, update quantity
-        cart_item.quantity += quantity
-        cart_item.save()
-    
-    messages.success(request, f"{product.name} has been added to your cart.")
-    
-    # If it's an AJAX request, return JSON response
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({
-            'success': True,
-            'message': 'Product added to cart',
-            'cart_count': cart.total_items
-        })
-    
-    # For normal form submissions, redirect to cart
-    return redirect('store:cart')
 
-@login_required
+    # Handle authenticated vs guest users
+    if request.user.is_authenticated:
+        # Authenticated user: database-backed cart
+        cart_obj, created = Cart.objects.get_or_create(user=request.user)
+
+        # Check if product with same size is already in cart
+        try:
+            if selected_size:
+                cart_item = CartItem.objects.get(cart=cart_obj, product=product, size=selected_size)
+            else:
+                cart_item = CartItem.objects.get(cart=cart_obj, product=product, size=None)
+        except CartItem.DoesNotExist:
+            # Item not in cart, create new one
+            cart_item = CartItem.objects.create(
+                cart=cart_obj,
+                product=product,
+                size=selected_size,
+                quantity=quantity
+            )
+        else:
+            # Item exists, update quantity
+            cart_item.quantity += quantity
+            cart_item.save()
+
+        messages.success(request, f"{product.name} has been added to your cart.")
+
+        # If it is an AJAX request, return JSON response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Product added to cart',
+                'cart_count': cart_obj.total_items
+            })
+
+        # For normal form submissions, redirect to cart
+        return redirect('store:cart')
+
+    else:
+        # Guest user: cookie-backed cart
+        cart_data = get_cart_from_cookie(request)
+        cart_data = add_item_to_cookie_cart(cart_data, product.id, quantity, size_id)
+
+        # Build response with cookie set
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            response = JsonResponse({
+                'success': True,
+                'message': 'Product added to cart',
+                'cart_count': get_cart_count_from_cookie(request),
+            })
+            response = save_cart_to_cookie(response, cart_data)
+            return response
+
+        # For normal form submissions, redirect to cart with cookie set
+        response = redirect('store:cart')
+        response = save_cart_to_cookie(response, cart_data)
+        return response
 @require_POST
 def update_cart(request, item_id):
-    cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
-    data = json.loads(request.body)
-    quantity = int(data.get('quantity', 1))
-    
-    if quantity > 0:
-        # Check if we're using a size
-        if cart_item.size:
-            # Check against size stock
-            if quantity <= cart_item.size.stock:
-                cart_item.quantity = quantity
-                cart_item.save()
+
+    # Handle authenticated vs guest users
+    if request.user.is_authenticated:
+        # Authenticated user: database-backed cart
+        cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
+        quantity = int(request.POST.get('quantity', 1))
+
+        if quantity > 0:
+            # Check if we are using a size
+            if cart_item.size:
+                # Check against size stock
+                if quantity <= cart_item.size.stock:
+                    cart_item.quantity = quantity
+                    cart_item.save()
+                else:
+                    return JsonResponse({
+                        'success': False, 
+                        'error': f'Only {cart_item.size.stock} units available in this size.'
+                    })
             else:
-                return JsonResponse({
-                    'success': False, 
-                    'error': f'Only {cart_item.size.stock} units available in this size.'
-                })
-        else:
-            # Check against product stock
-            if quantity <= cart_item.product.stock:
-                cart_item.quantity = quantity
-                cart_item.save()
-            else:
-                return JsonResponse({
-                    'success': False, 
-                    'error': f'Only {cart_item.product.stock} units available.'
-                })
-        
+                # Check against product stock
+                if quantity <= cart_item.product.stock:
+                    cart_item.quantity = quantity
+                    cart_item.save()
+                else:
+                    return JsonResponse({
+                        'success': False, 
+                        'error': f'Only {cart_item.product.stock} units available.'
+                    })
+
         # Recalculate cart totals
-        cart = cart_item.cart
-        cart_items = CartItem.objects.filter(cart=cart)
+        cart_obj = cart_item.cart
+        cart_items = CartItem.objects.filter(cart=cart_obj)
         subtotal = sum(item.total_price for item in cart_items)
         shipping_cost = Decimal('0.00') if subtotal >= 50 else Decimal('5.00')
         tax_rate = Decimal('0.10')  # 10% tax rate
         tax_amount = subtotal * tax_rate
         total = subtotal + shipping_cost + tax_amount
-        
-        # Return updated values
-        return JsonResponse({
-            'success': True,
-            'item_total': str(cart_item.total_price),
-            'subtotal': str(subtotal),
-            'shipping_cost': str(shipping_cost),
-            'tax_amount': str(tax_amount),
-            'total': str(total),
-            'free_shipping_eligible': subtotal >= 50,
-            'amount_needed_for_free_shipping': str(max(0, 50 - subtotal)),
-            'cart_count': cart.total_items
-        })
-    
-    return JsonResponse({'success': False, 'error': 'Invalid quantity'})
 
-@login_required
+        # Return updated values
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'item_total': str(cart_item.total_price),
+                'subtotal': str(subtotal),
+                'shipping_cost': str(shipping_cost),
+                'tax_amount': str(tax_amount),
+                'total': str(total),
+                'free_shipping_eligible': subtotal >= 50,
+                'amount_needed_for_free_shipping': str(max(0, 50 - subtotal)),
+                'cart_count': cart_obj.total_items
+            })
+        return redirect('store:cart')
+
+    else:
+        # Guest user: cookie-backed cart
+        # item_id is in format "productId_sizeId" or "productId_none"
+        parts = item_id.split('_')
+        product_id = int(parts[0])
+        size_id = int(parts[1]) if len(parts) > 1 and parts[1] != 'none' else None
+        quantity = int(request.POST.get('quantity', 1))
+
+        cart_data = get_cart_from_cookie(request)
+        cart_data = update_item_in_cookie_cart(cart_data, item_id, quantity)
+
+        response = redirect('store:cart')
+        response = save_cart_to_cookie(response, cart_data)
+        return response
 @require_POST
 def remove_from_cart(request, item_id):
-    cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
-    cart_item.delete()
-    return redirect('store:cart')
+
+    # Handle authenticated vs guest users
+    if request.user.is_authenticated:
+        # Authenticated user: database-backed cart
+        cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
+        cart_item.delete()
+        return redirect('store:cart')
+
+    else:
+        # Guest user: cookie-backed cart
+        cart_data = get_cart_from_cookie(request)
+        cart_data = remove_item_from_cookie_cart(cart_data, item_id)
+
+        response = redirect('store:cart')
+        response = save_cart_to_cookie(response, cart_data)
+        return response
 
 @login_required
 def checkout(request):
-    cart, created = Cart.objects.get_or_create(user=request.user)
-    cart_items = CartItem.objects.filter(cart=cart)
-    
-    if not cart_items.exists():
-        return redirect('store:cart')
-    
-    # Calculate totals
-    subtotal = sum(item.total_price for item in cart_items)
-    shipping_cost = Decimal('0.00') if subtotal >= 50 else Decimal('5.00')
-    tax_rate = Decimal('0.10')  # 10% tax rate
-    tax_amount = subtotal * tax_rate
-    total = subtotal + shipping_cost + tax_amount
-    
-    # Initialize Stripe
-    stripe.api_key = settings.STRIPE_SECRET_KEY
-    
-    return render(request, 'store/checkout.html', {
-        'cart_items': cart_items,
-        'cart_total': subtotal,
-        'shipping_cost': shipping_cost,
-        'tax_amount': tax_amount,
-        'total_amount': total,
-        'stripe_public_key': settings.STRIPE_PUBLISHABLE_KEY
-    })
+    # Handle authenticated vs guest users
+    if request.user.is_authenticated:
+        # Authenticated user: database-backed cart
+        cart_obj, created = Cart.objects.get_or_create(user=request.user)
+        cart_items = CartItem.objects.filter(cart=cart_obj)
+
+        if not cart_items.exists():
+            return redirect('store:cart')
+
+        # Calculate totals
+        subtotal = sum(item.total_price for item in cart_items)
+        shipping_cost = Decimal('0.00') if subtotal >= 50 else Decimal('5.00')
+        tax_rate = Decimal('0.10')  # 10% tax rate
+        tax_amount = subtotal * tax_rate
+        total = subtotal + shipping_cost + tax_amount
+
+        # Initialize Stripe
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+
+        return render(request, 'store/checkout.html', {
+            'cart_items': cart_items,
+            'cart_total': subtotal,
+            'shipping_cost': shipping_cost,
+            'tax_amount': tax_amount,
+            'total_amount': total,
+            'stripe_public_key': settings.STRIPE_PUBLISHABLE_KEY
+        })
+
+    else:
+        # Guest user: cannot checkout without signing in
+        messages.warning(request, 'Please sign in to proceed to checkout.')
+        return redirect('accounts:login')
 
 @login_required
 @require_POST
@@ -342,7 +437,7 @@ def process_payment(request):
                 return redirect('store:cart')
     
     try:
-        data = json.loads(request.body)
+        quantity = int(request.POST.get("quantity", 1))
         token = data.get('token')
         shipping_data = data.get('shipping')
         payment_method = data.get('payment_method', 'card')

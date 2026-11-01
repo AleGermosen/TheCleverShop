@@ -44,20 +44,42 @@
                                 <td class="unit-price">{% if item.size %}${{ item.size.get_final_price }}{% else %}${{ item.product.price }}{% endif %}</td>
                                 <td>
                                     <div class="input-group" style="width: 130px;">
-                                        <button type="button" class="btn btn-primary btn-sm quantity-btn" data-item-id="{{ item.id }}" data-action="decrease" style="height: 38px; width: 38px;">
-                                            <i class="bi bi-dash"></i>
-                                        </button>
-                                        <span class="form-control text-center quantity-display" style="background-color: #f8f9fa; font-weight: bold; font-size: 1.1rem; padding-top: 6px;" data-max="{% if item.size %}{{ item.size.stock }}{% else %}{{ item.product.stock }}{% endif %}" data-item-id="{{ item.id }}">
+                                        {% if item.quantity > 1 %}
+                                        {% if is_guest_cart %}
+                                        <form method="post" action="{% url 'store:update_cart' item.item_key %}" class="d-inline" style="margin: 0;">
+                                        {% else %}
+                                        <form method="post" action="{% url 'store:update_cart' item.id %}" class="d-inline" style="margin: 0;">
+                                        {% endif %}
+                                            {% csrf_token %}
+                                            <input type="hidden" name="quantity" value="{{ item.quantity|add:'-1' }}">
+                                            <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; width: 38px;">
+                                                <i class="bi bi-dash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        <span class="form-control text-center" style="background-color: #f8f9fa; font-weight: bold; font-size: 1.1rem; padding-top: 6px;">
                                             {{ item.quantity }}
                                         </span>
-                                        <button type="button" class="btn btn-primary btn-sm quantity-btn" data-item-id="{{ item.id }}" data-action="increase" style="height: 38px; width: 38px;">
-                                            <i class="bi bi-plus"></i>
-                                        </button>
+                                        {% if is_guest_cart %}
+                                        <form method="post" action="{% url 'store:update_cart' item.item_key %}" class="d-inline" style="margin: 0;">
+                                        {% else %}
+                                        <form method="post" action="{% url 'store:update_cart' item.id %}" class="d-inline" style="margin: 0;">
+                                        {% endif %}
+                                            {% csrf_token %}
+                                            <input type="hidden" name="quantity" value="{{ item.quantity|add:'1' }}">
+                                            <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; width: 38px;">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                                 <td class="item-total">${{ item.total_price }}</td>
                                 <td>
+                                    {% if is_guest_cart %}
+                                    <form method="post" action="{% url 'store:remove_from_cart' item.item_key %}" class="d-inline">
+                                    {% else %}
                                     <form method="post" action="{% url 'store:remove_from_cart' item.id %}" class="d-inline">
+                                    {% endif %}
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             <i class="bi bi-trash"></i>
@@ -91,18 +113,25 @@
                     <span>Shipping:</span>
                     <span>{% if cart_total >= 50 %}Free{% else %}$5.00{% endif %}</span>
                 </div>
-                <!-- <div class="d-flex justify-content-between mb-2">
+                <div class="d-flex justify-content-between mb-2">
                     <span>Tax (10%):</span>
                     <span>${{ tax_amount }}</span>
-                </div> -->
+                </div>
                 <hr>
                 <div class="d-flex justify-content-between mb-3">
                     <strong>Total:</strong>
                     <strong>${{ cart_total_with_shipping }}</strong>
                 </div>
+                {% if request.user.is_authenticated %}
                 <a href="{% url 'store:checkout' %}" class="btn btn-primary w-100">
                     Proceed to Checkout
                 </a>
+                {% else %}
+                <a href="{% url 'accounts:login' %}?next={% url 'store:checkout' %}" class="btn btn-primary w-100">
+                    Sign In to Checkout
+                </a>
+                <p class="text-muted small mt-2">You need to sign in to complete your purchase.</p>
+                {% endif %}
             </div>
         </div>
 
@@ -127,6 +156,4 @@
 </div>
 {% endblock %}
 
-{% block extra_scripts %}
-<script src="{% static 'js/cart-functions.js' %}"></script>
-{% endblock %} 
+{% block extra_scripts %}{% endblock %}

@@ -54,6 +54,62 @@
             border-color: var(--primary-color);
             color: var(--primary-color);
         }
+        
+        /* Zero padding overrides */
+        .container, .container-fluid {
+            padding-left: 5px !important;
+            padding-right: 5px !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+        }
+        
+        .row {
+            margin: 0 !important;
+        }
+        
+        .row > * {
+            padding-left: 5px !important;
+            padding-right: 5px !important;
+        }
+        
+        .py-4, .py-3, .py-2, .py-5, .py-1, 
+        .px-4, .px-3, .px-2, .px-5, .px-1,
+        .p-4, .p-3, .p-2, .p-5, .p-1 {
+            padding-left: 5px !important;
+            padding-right: 5px !important;
+        }
+        
+        .my-4, .my-3, .my-2, .my-5, .my-1,
+        .mx-4, .mx-3, .mx-2, .mx-5, .mx-1,
+        .m-4, .m-3, .m-2, .m-5, .m-1 {
+            margin: 0 !important;
+        }
+        
+        nav, footer, main {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            padding-left: 5px !important;
+            padding-right: 5px !important;
+        }
+        
+        /* Only keep minimal spacing for content readability */
+        .navbar-nav .nav-link {
+            padding: 0.5rem 0.5rem !important;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 0.5rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        p {
+            margin-top: 0.2rem !important;
+            margin-bottom: 0.2rem !important;
+        }
+        
+        .card-body {
+            padding: 0.5rem !important;
+        }
     </style>
     <link rel="icon" href="{% static 'img/clevercupid_round.png' %}" type="image/png" sizes="192x192">
     <link rel="apple-touch-icon" href="{% static 'img/clevercupid_round.png' %}">
@@ -62,13 +118,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% block extra_css %}{% endblock %}
+    <!-- Three.js Dependencies - Removed, handled by import map in home.html -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script> -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script> -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/STLLoader.js"></script> -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/@tweenjs/tween.js@18.6.4/dist/tween.umd.js"></script> -->
 </head>
-<body data-user-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}">
+<body id="top" style="margin: 0; padding: 0;">
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'store:home' %}">
-                <img src="{% static 'img/clevercupid.png' %}" alt="The Clever Shop Logo" width="30" height="30" class="d-inline-block align-text-top me-2" style="background-color: white; border-radius: 50%; padding: 2px; filter: invert(100%);">
+            <a class="navbar-brand" href="{% url 'store:home' %}" style="padding-left: 5px;">
+                <img src="{% static 'img/clevercupid.png' %}" alt="The Clever Shop Logo" width="30" height="30" class="d-inline-block align-text-top me-1" style="background-color: white; border-radius: 50%; padding: 2px; filter: invert(100%);">
                 <span class="fw-bold">The Clever Shop</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -86,7 +147,7 @@
                                     <i class="bi bi-grid-3x3-gap"></i> All Products
                                 </a>
                             </li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li><hr class="dropdown-divider m-0"></li>
                             {% if parent_categories %}
                             <!-- Featured Category -->
                             <li class="dropdown-submenu">
@@ -102,7 +163,7 @@
                                                 </a>
                                             </li>
                                         {% endfor %}
-                                        <li><hr class="dropdown-divider"></li>
+                                        <li><hr class="dropdown-divider m-0"></li>
                                         <li>
                                             <a class="dropdown-item view-all" href="{% url 'store:category_detail' parent_categories.0.slug %}">
                                                 <i class="bi bi-list"></i> View All {{ parent_categories.0.name }}
@@ -111,7 +172,7 @@
                                     {% endif %}
                                 </ul>
                             </li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li><hr class="dropdown-divider m-0"></li>
                             <!-- Other Categories -->
                             {% endif %}
 
@@ -130,7 +191,7 @@
                                                         </a>
                                                     </li>
                                                 {% endfor %}
-                                                <li><hr class="dropdown-divider"></li>
+                                                <li><hr class="dropdown-divider m-0"></li>
                                                 <li>
                                                     <a class="dropdown-item view-all" href="{% url 'store:category_detail' parent.slug %}">
                                                         <i class="bi bi-list"></i> View All {{ parent.name }}
@@ -146,7 +207,7 @@
                                         </li>
                                     {% endif %}
                                     {% if not forloop.last %}
-                                        <li><hr class="dropdown-divider"></li>
+                                        <li><hr class="dropdown-divider m-0"></li>
                                     {% endif %}
                                 {% endif %}
                             {% endfor %}
@@ -158,7 +219,7 @@
                         </a>
                     </li>
                 </ul>
-                <form class="d-flex me-3 search-form" action="{% url 'store:search' %}" method="GET">
+                <form class="d-flex search-form" action="{% url 'store:search' %}" method="GET" style="margin-right: 5px;">
                     <div class="input-group">
                         <input class="form-control" type="search" name="q" placeholder="Search products...">
                         <button class="btn btn-search" type="submit"><i class="bi bi-search"></i></button>
@@ -179,8 +240,13 @@
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">Profile</a></li>
                                 <li><a class="dropdown-item" href="{% url 'store:orders' %}">My Orders</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Logout</a></li>
+                                <li><hr class="dropdown-divider m-0"></li>
+                                <li>
+                                <form method="post" action="{% url 'accounts:logout' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item link-danger">Logout</button>
+                                </form>
+                            </li>
                             </ul>
                         </li>
                     {% else %}
@@ -197,10 +263,10 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="container py-4">
+    <main class="container-fluid">
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show m-0" role="alert">
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
@@ -211,16 +277,16 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-light py-4 mt-auto">
+    <footer class="bg-light mt-0" style="padding: 5px 0;">
         <div class="container">
-            <div class="row">
+            <div class="row g-0">
                 <div class="col-md-4">
                     <h5>About The Clever Shop</h5>
                     <p>Your one-stop shop for all your needs. Quality products, great prices, and excellent service.</p>
                 </div>
                 <div class="col-md-4">
                     <h5>Quick Links</h5>
-                    <ul class="list-unstyled">
+                    <ul class="list-unstyled" style="margin: 0; padding: 0;">
                         <li><a href="{% url 'store:home' %}">Home</a></li>
                         <li><a href="#">About Us</a></li>
                         <li><a href="#">Contact</a></li>
@@ -230,30 +296,27 @@
                 </div>
                 <div class="col-md-4">
                     <h5>Contact Us</h5>
-                    <ul class="list-unstyled">
+                    <ul class="list-unstyled" style="margin: 0; padding: 0;">
                         <li><i class="bi bi-geo-alt"></i> 123 Street Name, City, Country</li>
                         <li><i class="bi bi-envelope"></i> info@clevercupid.com</li>
                         <li><i class="bi bi-phone"></i> +1 234 567 890</li>
                     </ul>
                 </div>
             </div>
-            <hr>
+            <hr style="margin: 5px 0;">
             <div class="text-center">
-                <p>&copy; {% now "Y" %} The Clever Shop. All rights reserved.</p>
+                <p style="margin: 0;">&copy; {% now "Y" %} The Clever Shop. All rights reserved.</p>
             </div>
         </div>
     </footer>
 
     <!-- Back to Top Button -->
-    <button id="back-to-top" class="btn btn-primary back-to-top" title="Back to Top">
+    <a href="#top" class="btn btn-primary back-to-top" title="Back to Top" style="padding: 5px; position: fixed; bottom: 20px; right: 20px;">
         <i class="bi bi-arrow-up"></i>
-    </button>
+    </a>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/main.js' %}"></script>
-    {% if not user.is_authenticated %}
-    <script src="{% static 'js/guest-cart.js' %}"></script>
-    {% endif %}
     {% block extra_js %}{% endblock %}
     {% block extra_scripts %}{% endblock %}
 </body>

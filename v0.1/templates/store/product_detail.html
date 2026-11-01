@@ -77,17 +77,7 @@
     <div class="col-md-6">
         <div class="product-gallery">
             <div class="main-image mb-3">
-                {% if product.images.all %}
-                <button class="image-nav-button prev" onclick="navigateImage('prev')">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                {% endif %}
                 <img src="{{ product.image_url }}" class="img-fluid rounded shadow" alt="{{ product.name }}" id="mainImage">
-                {% if product.images.all %}
-                <button class="image-nav-button next" onclick="navigateImage('next')">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-                {% endif %}
             </div>
             {% if product.images.all %}
             <div class="thumbnail-images row g-2">
@@ -134,13 +124,7 @@
 
         {% if product.stock > 0 or product.has_sizes %}
         <form method="post" action="{% url 'store:add_to_cart' product.id %}" 
-            id="add-to-cart-form"
-            data-product-id="{{ product.id }}"
-            data-product-name="{{ product.name }}"
-            data-product-price="{{ product.price }}"
-            data-product-category="{{ product.category.name }}"
-            data-product-image="{% if product.image %}{{ product.image.url }}{% endif %}"
-            data-product-max-quantity="{{ product.stock }}">
+            id="add-to-cart-form">
             {% csrf_token %}
             
             {% if product.has_sizes %}
@@ -185,9 +169,9 @@
                 </div>
                 <div class="col-auto">
                     <div class="input-group" style="width: 160px;">
-                        <button type="button" class="btn btn-outline-secondary" onclick="decrementQuantity()" style="height: 45px; width: 45px; font-size: 1.2rem;">-</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="this.parentNode.querySelector('input[type=number]').stepDown()" style="height: 45px; width: 45px; font-size: 1.2rem;">-</button>
                         <input type="number" class="form-control text-center" id="quantity" name="quantity" value="1" min="1" max="{{ product.stock }}" style="font-size: 1.2rem; height: 45px;">
-                        <button type="button" class="btn btn-outline-secondary" onclick="incrementQuantity()" style="height: 45px; width: 45px; font-size: 1.2rem;">+</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="this.parentNode.querySelector('input[type=number]').stepUp()" style="height: 45px; width: 45px; font-size: 1.2rem;">+</button>
                     </div>
                 </div>
                 <div class="col-auto">
@@ -292,121 +276,4 @@
 {% endif %}
 {% endblock %}
 
-{% block extra_scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('add-to-cart-form');
-    if (!form) return;
-    
-    const isAuthenticated = document.body.getAttribute('data-user-authenticated') === 'true';
-    
-    // If user is not authenticated, handle adding to guest cart
-    if (!isAuthenticated) {
-        form.addEventListener('submit', function(event) {
-            event.preventDefault();
-            
-            // Get product details from data attributes
-            const productId = form.dataset.productId;
-            const productName = form.dataset.productName;
-            const productPrice = parseFloat(form.dataset.productPrice);
-            const productCategory = form.dataset.productCategory;
-            const productImage = form.dataset.productImage;
-            const maxQuantity = parseInt(form.dataset.productMaxQuantity);
-            
-            // Get quantity from form input
-            const quantityInput = form.querySelector('input[name="quantity"]');
-            const quantity = parseInt(quantityInput?.value || 1);
-            
-            // Get size if available
-            const sizeSelect = form.querySelector('select[name="size"]');
-            const size = sizeSelect?.value || null;
-            
-            // Add to guest cart
-            addToGuestCart(productId, productName, productPrice, productCategory, productImage, quantity, size, maxQuantity);
-            
-            // Show success message
-            const alertContainer = document.createElement('div');
-            alertContainer.classList.add('alert', 'alert-success', 'position-fixed', 'bottom-0', 'end-0', 'm-3');
-            alertContainer.style.zIndex = '1050';
-            alertContainer.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-check-circle-fill me-2"></i>
-                    <div>
-                        <strong>Added to cart!</strong>
-                        <p class="mb-0">${quantity} × ${productName} ${size ? `(${size})` : ''}</p>
-                    </div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            document.body.appendChild(alertContainer);
-            
-            // Auto-dismiss after 3 seconds
-            setTimeout(() => {
-                alertContainer.remove();
-            }, 3000);
-        });
-    }
-});
-
-function addToGuestCart(productId, productName, productPrice, productCategory, productImage, quantity, size, maxQuantity) {
-    // Initialize guest cart if it doesn't exist
-    if (!localStorage.getItem('guestCart')) {
-        localStorage.setItem('guestCart', JSON.stringify({
-            items: [],
-            lastUpdated: new Date().toISOString()
-        }));
-    }
-    
-    // Get the current cart
-    const guestCart = JSON.parse(localStorage.getItem('guestCart'));
-    
-    // Check if the item already exists in the cart
-    const existingItemIndex = guestCart.items.findIndex(item => 
-        item.id === productId && (size ? item.size === size : !item.size)
-    );
-    
-    if (existingItemIndex !== -1) {
-        // Update quantity if item exists
-        const currentQuantity = guestCart.items[existingItemIndex].quantity;
-        const newQuantity = Math.min(currentQuantity + quantity, maxQuantity);
-        guestCart.items[existingItemIndex].quantity = newQuantity;
-    } else {
-        // Add new item if it doesn't exist
-        guestCart.items.push({
-            id: productId,
-            name: productName,
-            price: productPrice,
-            category: productCategory,
-            image: productImage,
-            quantity: quantity,
-            size: size,
-            max_quantity: maxQuantity
-        });
-    }
-    
-    // Update last updated timestamp
-    guestCart.lastUpdated = new Date().toISOString();
-    
-    // Save to localStorage
-    localStorage.setItem('guestCart', JSON.stringify(guestCart));
-    
-    // Update cart count in navbar
-    updateCartCount();
-}
-
-function updateCartCount() {
-    const cartCountBadge = document.querySelector('.cart-count');
-    if (cartCountBadge) {
-        const guestCart = JSON.parse(localStorage.getItem('guestCart')) || { items: [] };
-        let count = 0;
-        
-        // Sum quantities of all items
-        guestCart.items.forEach(item => {
-            count += item.quantity;
-        });
-        
-        cartCountBadge.textContent = count;
-    }
-}
-</script>
-{% endblock %} 
+{% block extra_scripts %}{% endblock %} 

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Hero Debug</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
+        #hero-canvas-container { width: 100vw; height: 100vh; display: block; }
+    </style>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "tweenjs": "https://unpkg.com/@tweenjs/tween.js@18.6.4/dist/tween.esm.js"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="hero-canvas-container"></div>
+
+    <script type="module">
+        // Use relative path for local testing
+        import ThreeDHero from "../../static/js/3d_hero.js";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                console.log("DOM Loaded, initializing ThreeDHero...");
+                // Initialize the 3D hero
+                const hero = new ThreeDHero('hero-canvas-container', {
+                    autoRotate: true,
+                    autoRotateSpeed: 1.0,
+                    transitionDuration: 2000,
+                    backgroundColor: 0x1a1a1a,
+                    ambientLightIntensity: 0.6,
+                    directionalLightIntensity: 0.8
+                });
+                console.log("ThreeDHero initialized.");
+
+                // Define the models to cycle through (using relative paths)
+                const models = [
+                    {
+                        url: "../../static/models/harry_potter_right.stl",
+                        color: 0x4a90e2, roughness: 0.4, metalness: 0.6, scaleFactor: 0.8, 
+                        customRotation: [0, Math.PI / 4, 0],
+                        customCameraPosition: [12, 12, 12] // Zoomed out
+                    },
+                    {
+                        url: "../../static/models/harry_potter_left.stl",
+                        color: 0xe24a4a, roughness: 0.4, metalness: 0.6, scaleFactor: 0.8, 
+                        customRotation: [0, -Math.PI / 4, 0],
+                        customCameraPosition: [8, 8, 8] // Medium zoom
+                    },
+                    {
+                        url: "../../static/models/Deathly_Hallows.STL",
+                        color: 0xffffff, roughness: 0.2, metalness: 0.8, emissive: 0xffffff, emissiveIntensity: 0.3, scaleFactor: 1.2, 
+                        customRotation: [0, 0, 0],
+                        customCameraPosition: [5, 5, 5] // Zoomed in
+                    }
+                    /* Removed other models - Keeping only the 3 specified
+                    {
+                        url: "../../static/models/sample_print.stl",
+                        color: 0xaaaaaa, roughness: 0.5, metalness: 0.5, scaleFactor: 1.0, customRotation: [0, 0, 0]
+                    },
+                    {
+                        url: "../../static/models/pyramid.stl",
+                        color: 0x4ae24a, roughness: 0.3, metalness: 0.7, scaleFactor: 1.5, customRotation: [0, 0, 0]
+                    },
+                    {
+                        url: "../../static/models/cube.stl",
+                        color: 0xe2e24a, roughness: 0.2, metalness: 0.8, scaleFactor: 1.5, customRotation: [0, 0, 0]
+                    }
+                    */
+                ];
+                console.log("Models defined:", models);
+
+                // Cycle through models every 5 seconds
+                let currentModelIndex = 0;
+                function cycleModels() {
+                    const modelConfig = models[currentModelIndex];
+                    console.log(`Attempting to change to model (${currentModelIndex}):`, modelConfig.url);
+                    hero.changeModel(modelConfig).then(() => {
+                        console.log(`Successfully changed to model: ${modelConfig.url}`);
+                    }).catch(error => {
+                        console.error(`Error loading model (${currentModelIndex}): ${modelConfig.url}`, error);
+                    });
+                    currentModelIndex = (currentModelIndex + 1) % models.length;
+                }
+
+                // Start cycling immediately
+                console.log("Starting model cycle immediately...");
+                cycleModels(); // Initial call
+                setInterval(cycleModels, 5000); // Subsequent calls
+                console.log("Model cycling interval set.");
+
+            } catch (error) {
+                console.error("Error during 3D Hero setup:", error);
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -31,11 +31,39 @@ body {
     line-height: 1.6;
 }
 
+/* Container with reduced side padding */
+.container {
+    padding-left: 5px;
+    padding-right: 5px;
+    width: 100%;
+    max-width: 100%;
+}
+
+.container-fluid {
+    padding-left: 5px;
+    padding-right: 5px;
+    max-width: 100%;
+}
+
+@media (min-width: 1400px) {
+    .container, .container-fluid {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+}
+
 /* Navbar styling */
 .navbar {
     background-color: var(--surface-color);
     box-shadow: var(--shadow-light);
     padding: 0.75rem 0;
+    width: 100%;
+}
+
+.navbar .container {
+    padding-left: 0px;
+    padding-right: 0px;
+    max-width: 100%;
 }
 
 .navbar-brand {
@@ -139,6 +167,13 @@ footer {
     background-color: var(--surface-color);
     border-top: 1px solid var(--border-color);
     color: var(--text-secondary);
+    width: 100%;
+}
+
+footer .container {
+    padding-left: 0px;
+    padding-right: 0px;
+    max-width: 100%;
 }
 
 footer h5 {
@@ -634,8 +669,11 @@ h2.fw-bold.position-relative::after {
 }
 
 .bg-dark .btn-primary {
+    font-size: 1.25rem;
     border-radius: 50px;
-    padding: 0.75rem 2rem;
+    display: inline-block;
+    border-radius: 50px;
+    padding: 10px 20px !important;
     font-weight: 600;
     background-color: var(--secondary-color);
     border-color: var(--secondary-color);
@@ -650,10 +688,20 @@ h2.fw-bold.position-relative::after {
 
 /* Subcategory badges */
 .subcategory-badge {
-    background-color: var(--background-light);
-    border: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    /* Keep the text size the same */
+    padding: 10px 20px !important;
+    /* Use !important to ensure it takes effect */
     border-radius: 50px;
-    transition: all 0.2s ease;
+    /* Maintain elliptical shape */
+    display: inline-block;
+    /* Ensure it behaves like a block element */
+    background-color: var(--background-light);
+    /* Optional: set a background color */
+    border: 1px solid var(--border-color);
+    /* Optional: add a border */
+    margin: 5px;
+    /* Add margin to create space between badges */
 }
 
 .subcategory-badge:hover {
@@ -661,4 +709,40 @@ h2.fw-bold.position-relative::after {
     color: white !important;
     border-color: var(--primary-color);
     transform: translateY(-2px);
+}
+
+/* Extra zero padding styles for all elements */
+.py-4, .py-3, .py-2, .py-5, .py-1,
+.px-4, .px-3, .px-2, .px-5, .px-1,
+.p-4, .p-3, .p-2, .p-5, .p-1 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.my-4, .my-3, .my-2, .my-5, .my-1,
+.m-4, .m-3, .m-2, .m-5, .m-1 {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.card {
+    border-radius: 0;
+}
+
+.card-body, .card-header, .card-footer {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+section {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* Keep vertical paddings minimal */
+.py-4, .py-3, .py-2, .py-5, .py-1,
+.pt-4, .pt-3, .pt-2, .pt-5, .pt-1,
+.pb-4, .pb-3, .pb-2, .pb-5, .pb-1 {
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
 }

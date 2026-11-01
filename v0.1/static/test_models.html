@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STL Model Test</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: sans-serif; }
+        .model-list { margin-bottom: 20px; }
+        .status { padding: 5px; margin: 5px 0; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>STL Model Test</h1>
+    <div class="model-list">
+        <h2>Models to Check:</h2>
+        <ul id="model-status"></ul>
+    </div>
+
+    <script>
+        // List of models to check
+        const models = [
+            '/static/models/sample_print.stl',
+            '/static/models/pyramid.stl',
+            '/static/models/cube.stl',
+            '/static/models/harry_potter_left.stl',
+            '/static/models/harry_potter_right.stl',
+            '/static/models/Deathly_Hallows.STL',
+            '/static/models/fallback/cube.stl'
+        ];
+
+        // Container for status updates
+        const statusEl = document.getElementById('model-status');
+
+        // Test each model
+        models.forEach(url => {
+            const li = document.createElement('li');
+            li.textContent = url;
+            li.className = 'loading';
+            statusEl.appendChild(li);
+
+            // Make a simple XMLHttpRequest to check if the file exists
+            const xhr = new XMLHttpRequest();
+            xhr.open('HEAD', url, true);
+            
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    li.textContent = `${url} - SUCCESS (${xhr.status})`;
+                    li.className = 'status success';
+                } else {
+                    li.textContent = `${url} - ERROR: ${xhr.status} ${xhr.statusText}`;
+                    li.className = 'status error';
+                }
+            };
+            
+            xhr.onerror = function() {
+                li.textContent = `${url} - ERROR: Network error`;
+                li.className = 'status error';
+            };
+            
+            xhr.send();
+        });
+    </script>
+</body>
+</html> 

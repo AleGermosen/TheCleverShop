@@ -1,0 +1,29 @@
+[project]
+name = "clevercupid"
+version = "0.1.0"
+description = "A full-stack e-commerce site for 3D-printed products, built with Django."
+readme = "../README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "Django>=5.0,<6.0",
+    "Pillow>=10.0",
+    "django-crispy-forms>=2.0",
+    "crispy-bootstrap5>=2024.0",
+    "python-dotenv>=1.0",
+    "django-allauth>=0.60",
+    "django-admin-sortable2>=2.0",
+    "stripe>=7.0",
+    "numpy>=1.26",
+    "numpy-stl>=3.0",
+]
+
+[project.scripts]
+clevercupid = "manage:main"
+
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312']
+
+[tool.ruff]
+line-length = 88

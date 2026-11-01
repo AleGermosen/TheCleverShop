@@ -17,11 +17,12 @@
         color: white;
         padding: 0;
         margin-top: -20px;
-        margin-bottom: 2rem;
+        margin-bottom: 0;
         border-radius: 0 0 30px 30px;
         overflow: hidden;
         background: linear-gradient(135deg, #2b2b2b, #1a1a1a);
         height: 600px;
+        width: 100%;
     }
     
     /* Canvas container */
@@ -38,6 +39,7 @@
         position: relative;
         z-index: 1;
         padding: 140px 0;
+        padding-left: 20px;
         background: linear-gradient(90deg, 
             rgba(0, 0, 0, 0.7) 0%, 
             rgba(0, 0, 0, 0.4) 50%, 
@@ -47,6 +49,37 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
+    }
+    
+    /* Zero padding for containers */
+    .hero-section .container-fluid,
+    .container.px-4.px-lg-5 {
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+        max-width: 100%;
+    }
+    
+    /* Remove all margins and gutters */
+    .row {
+        margin-left: 0;
+        margin-right: 0;
+    }
+    
+    .row > [class^="col-"] {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+    
+    /* Remove section padding */
+    section {
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+    }
+    
+    /* Also remove card padding */
+    .card-body {
+        padding-left: 5px;
+        padding-right: 5px;
     }
     
     .hero-section h1 {
@@ -99,6 +132,47 @@
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
     }
     
+    /* Hero Controls Styling */
+    .hero-controls {
+        position: absolute;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px 20px;
+        border-radius: 50px;
+        backdrop-filter: blur(5px);
+    }
+
+    .hero-control-btn {
+        background: transparent;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .hero-control-btn:hover {
+        background: white;
+        color: black;
+    }
+
+    .hero-model-indicator {
+        color: white;
+        font-weight: 500;
+        min-width: 60px;
+        text-align: center;
+    }
+
     .layer-badge {
         position: absolute;
         top: 30px;
@@ -223,6 +297,7 @@
         background-color: #e9ecef;
         color: #495057;
         transition: all 0.2s ease;
+        border-radius: 50px;
     }
     
     .subcategory-badge:hover {
@@ -233,24 +308,18 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Import Three.js library -->
+<!-- Import Three.js library - Using a single approach to avoid multiple instances -->
+<!-- Option 1: Modern ES modules approach -->
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
 <script type="importmap">
 {
     "imports": {
-        "three": "https://unpkg.com/three@0.156.1/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.156.1/examples/jsm/"
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "tweenjs": "https://unpkg.com/@tweenjs/tween.js@18.6.4/dist/tween.esm.js"
     }
 }
 </script>
-
-<!-- Legacy fallback for older browsers -->
-<script nomodule src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script nomodule src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
-<script nomodule src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.min.js"></script>
-
-<!-- Hero section script -->
-<script type="module" src="{% static 'js/3d_hero.js' %}"></script>
 
 <!-- Category image cycling script -->
 <script>
@@ -362,21 +431,130 @@
         setInterval(cycleImages, 5000); // Change image every 5 seconds
     }
 </script>
+
+<script type="module">
+    import ThreeDHero from "{% static 'js/3d_hero.js' %}";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
+            console.log("DOM Loaded, initializing ThreeDHero for home page...");
+            const hero = new ThreeDHero('hero-canvas-container', {
+                autoRotate: true,
+                autoRotateSpeed: 1.0,
+                transitionDuration: 2000,
+                backgroundColor: 0x1a1a1a,
+                ambientLightIntensity: 0.6,
+                directionalLightIntensity: 0.8
+            });
+            console.log("ThreeDHero initialized for home page.");
+
+            const models = [
+                {
+                    url: "{% static 'models/harry_potter_right.stl' %}",
+                    color: 0x4a90e2, roughness: 0.4, metalness: 0.6, scaleFactor: 0.8, 
+                    customRotation: [0, Math.PI / 4, 0],
+                    customCameraPosition: [150, 150, 150]
+                },
+                {
+                    url: "{% static 'models/harry_potter_left.stl' %}",
+                    color: 0xe24a4a, roughness: 0.4, metalness: 0.6, scaleFactor: 0.8, 
+                    customRotation: [0, -Math.PI / 4, 0]
+                },
+                {
+                    url: "{% static 'models/Deathly_Hallows.STL' %}",
+                    color: 0xffffff, roughness: 0.2, metalness: 0.8, emissive: 0xffffff, emissiveIntensity: 0.3, scaleFactor: 1.2, 
+                    customRotation: [0, 0, 0]
+                },
+                {
+                    url: "{% static 'models/TemplePlantPot.stl' %}",
+                    color: 0xcccccc,
+                    roughness: 0.4,
+                    metalness: 0.6,
+                    scaleFactor: 1.0,
+                    customRotation: [Math.PI * 1.5, 0, 0]
+                }
+            ];
+
+            let currentModelIndex = 0;
+            let cycleInterval;
+            const indicator = document.getElementById('model-indicator');
+
+            function updateModel(index) {
+                currentModelIndex = index;
+                const modelConfig = models[currentModelIndex];
+                indicator.textContent = `${currentModelIndex + 1} / ${models.length}`;
+
+                hero.changeModel(modelConfig).then(() => {
+                    console.log(`Successfully changed to model: ${modelConfig.url}`);
+                }).catch(error => {
+                    console.error(`Error loading model (${currentModelIndex}): ${modelConfig.url}`, error);
+                });
+            }
+
+            function nextModel() {
+                const nextIndex = (currentModelIndex + 1) % models.length;
+                updateModel(nextIndex);
+            }
+
+            function prevModel() {
+                const prevIndex = (currentModelIndex - 1 + models.length) % models.length;
+                updateModel(prevIndex);
+            }
+
+            function startCycling() {
+                stopCycling();
+                cycleInterval = setInterval(nextModel, 5000);
+            }
+
+            function stopCycling() {
+                if (cycleInterval) clearInterval(cycleInterval);
+            }
+
+            // Event Listeners for controls
+            document.getElementById('prev-model').addEventListener('click', () => {
+                stopCycling();
+                prevModel();
+                startCycling();
+            });
+
+            document.getElementById('next-model').addEventListener('click', () => {
+                stopCycling();
+                nextModel();
+                startCycling();
+            });
+
+            // Initial load
+            updateModel(0);
+            startCycling();
+
+        } catch (error) {
+            console.error("Error during 3D Hero setup on home page:", error);
+        }
+    });
+</script>
 {% endblock %}
 
 {% block content %}
-<!-- Hero Section with Three.js -->
+<!--Hero Section with Three.js-->
 <section class="hero-section">
     <div id="hero-canvas-container"></div>
-    <div class="layer-badge">
-        <span class="layer-indicator"></span>
-        <span>3D Printing in Progress</span>
+
+    <!-- Hero Slider Controls -->
+    <div class="hero-controls">
+        <button id="prev-model" class="hero-control-btn" title="Previous Model">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <div id="model-indicator" class="hero-model-indicator">1 / 4</div>
+        <button id="next-model" class="hero-control-btn" title="Next Model">
+            <i class="fas fa-chevron-right"></i>
+        </button>
     </div>
+
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-8 col-lg-6">
                 <div class="hero-content">
-                    <h1>Welcome to <br> the Clever Shop</h1>
+                    <h1>Welcome to <br> The Clever Shop</h1>
                     <p class="lead">Unique personalized gifts created through the magic of 3D printing technology.</p>
                     <div class="btn-group">
                         <a href="{% url 'store:product_list' %}" class="btn btn-primary">Shop Now</a>
@@ -394,13 +572,13 @@
         <div class="text-center mb-3">
             <h2 class="fw-bold position-relative d-inline-block pb-2">Shop by Category</h2>
         </div>
-        <div class="row gx-4 gx-lg-5 row-cols-1 row-cols-md-2 row-cols-xl-3 justify-content-center">
+        <div class="row gx-4 gx-lg-5 row-cols-1 row-cols-sm-2 row-cols-md-3 justify-content-center">
             {% for category_data in categories_with_products %}
             <div class="col mb-3">
                 <div class="card h-100 category-card shadow-sm">
                     <!-- Card header with category name -->
                     <div class="card-header bg-primary text-white py-1 px-2">
-                        <h5 class="card-title m-0 text-center">{{ category_data.category.name }}</h5>
+                        <h5 class="card-title m-0 text-center small">{{ category_data.category.name }}</h5>
                     </div>
                     
                     <!-- Image container -->
@@ -441,7 +619,7 @@
                             <h6 class="text-center small mb-1">Subcategories:</h6>
                             <div class="d-flex flex-wrap justify-content-center">
                                 {% for subcategory in subcategories %}
-                                <a href="{% url 'store:category_detail' subcategory.slug %}" class="badge text-dark me-1 mb-1 p-2 text-decoration-none small subcategory-badge">
+                                <a href="{% url 'store:category_detail' subcategory.slug %}" class="text-decoration-none subcategory-badge">
                                     {{ subcategory.name }}
                                 </a>
                                 {% endfor %}
@@ -591,4 +769,4 @@
         </div>
     </div>
 </section>
-{% endblock %} 
+{% endblock %}

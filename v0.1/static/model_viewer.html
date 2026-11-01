@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Model Viewer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .model-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .model-card {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .model-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+        .model-viewer {
+            height: 300px;
+            background-color: #222;
+            position: relative;
+        }
+        .model-info {
+            padding: 15px;
+        }
+        .model-info h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            color: #333;
+        }
+        .model-info p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 0, 0, 0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .status-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            z-index: 10;
+        }
+        .loading {
+            background-color: #FFC107;
+            color: #333;
+        }
+        .success {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .failed {
+            background-color: #F44336;
+            color: white;
+        }
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 5px;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background-color: #388E3C;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>3D Model Viewer</h1>
+        
+        <div class="controls">
+            <button id="rotate-toggle" class="btn">Pause Rotation</button>
+            <button id="reset-camera" class="btn">Reset View</button>
+        </div>
+        
+        <div class="model-container" id="model-container">
+            <!-- Model cards will be added here dynamically -->
+        </div>
+    </div>
+
+    <!-- Load Three.js libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.min.js"></script>
+
+    <script>
+        // List of all models to display
+        const models = [
+            { 
+                type: 'stl',
+                url: '/static/models/sample_print.stl',
+                color: 0x4CAF50,
+                name: 'Sample Print'
+            },
+            { 
+                type: 'stl',
+                url: '/static/models/pyramid.stl',
+                color: 0xFF5722,
+                name: 'Pyramid'
+            },
+            {
+                type: 'geometry',
+                geometryType: 'torusKnot',
+                color: 0x9C27B0,
+                name: 'Torus Knot'
+            },
+            {
+                type: 'stl',
+                url: '/static/models/harry_potter_left.stl',
+                color: 0xFFD700, // Gold color
+                name: 'Harry Potter Left Figure',
+                metalness: 0.8,
+                roughness: 0.2,
+                emissive: 0x222200,
+                emissiveIntensity: 0.3,
+                customCameraPosition: [2.5, 3, 3], // Closer camera position [x, y, z]
+                customRotation: [0, Math.PI/6, 0]  // Custom rotation [x, y, z]
+            },
+            {
+                type: 'stl',
+                url: '/static/models/harry_potter_right.stl',
+                color: 0xFFD700, // Gold color
+                name: 'Harry Potter Right Figure',
+                metalness: 0.8,
+                roughness: 0.2,
+                emissive: 0x222200,
+                emissiveIntensity: 0.3,
+                customCameraPosition: [2.5, 3, 3], // Closer camera position
+                customRotation: [0, -Math.PI/6, 0] // Different rotation for right figure
+            },
+            {
+                type: 'stl',
+                url: '/static/models/cube.stl',
+                color: 0x2196F3,
+                name: 'Cube Model'
+            },
+            {
+                type: 'stl',
+                url: '/static/models/Deathly_Hallows.STL',
+                color: 0x9E9E9E, // Silver color
+                name: 'Deathly Hallows Symbol',
+                metalness: 0.9,
+                roughness: 0.1,
+                emissive: 0x111111,
+                emissiveIntensity: 0.2,
+                customCameraPosition: [2, 3, 3], // Closer camera position
+                customRotation: [-Math.PI/2, 0, 0], // Rotated to face camera
+                animate: true, // Enable animation
+                animationSpeed: 0.005 // Subtle rotation speed
+            },
+            {
+                type: 'geometry',
+                geometryType: 'sphere',
+                color: 0xE91E63,
+                name: 'Sphere Geometry'
+            },
+            {
+                type: 'geometry',
+                geometryType: 'cube',
+                color: 0xFF9800,
+                name: 'Cube Geometry'
+            },
+            {
+                type: 'geometry',
+                geometryType: 'torus',
+                color: 0x00BCD4,
+                name: 'Torus Geometry'
+            },
+            {
+                type: 'stl',
+                url: '/static/models/fallback/cube.stl',
+                color: 0x795548,
+                name: 'Fallback Cube'
+            }
+        ];
+
+        // Global variables to control all viewers
+        let globalAutoRotate = true;
+
+        // Create model viewers
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('model-container');
+            
+            // Create a card for each model
+            models.forEach((model, index) => {
+                // Create card elements
+                const card = document.createElement('div');
+                card.className = 'model-card';
+                
+                const viewerContainer = document.createElement('div');
+                viewerContainer.className = 'model-viewer';
+                viewerContainer.id = `viewer-${index}`;
+                
+                const statusBadge = document.createElement('div');
+                statusBadge.className = 'status-badge loading';
+                statusBadge.textContent = 'Loading...';
+                viewerContainer.appendChild(statusBadge);
+                
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'error-message';
+                errorMessage.textContent = 'Failed to load model';
+                viewerContainer.appendChild(errorMessage);
+                
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'model-info';
+                
+                const heading = document.createElement('h2');
+                heading.textContent = model.name;
+                
+                const details = document.createElement('p');
+                if (model.type === 'stl') {
+                    details.textContent = `STL Model | Color: #${model.color.toString(16).padStart(6, '0')}`;
+                } else {
+                    details.textContent = `Geometry: ${model.geometryType} | Color: #${model.color.toString(16).padStart(6, '0')}`;
+                }
+                
+                infoDiv.appendChild(heading);
+                infoDiv.appendChild(details);
+                
+                card.appendChild(viewerContainer);
+                card.appendChild(infoDiv);
+                
+                container.appendChild(card);
+                
+                // Initialize the 3D viewer
+                initViewer(viewerContainer.id, model, statusBadge, errorMessage);
+            });
+            
+            // Set up global controls
+            document.getElementById('rotate-toggle').addEventListener('click', function() {
+                globalAutoRotate = !globalAutoRotate;
+                this.textContent = globalAutoRotate ? 'Pause Rotation' : 'Resume Rotation';
+                
+                // Update all viewers
+                document.querySelectorAll('.model-viewer').forEach(viewer => {
+                    if (viewer.threeControls) {
+                        viewer.threeControls.autoRotate = globalAutoRotate;
+                    }
+                });
+            });
+            
+            document.getElementById('reset-camera').addEventListener('click', function() {
+                // Reset camera for all viewers
+                document.querySelectorAll('.model-viewer').forEach(viewer => {
+                    if (viewer.threeCamera) {
+                        viewer.threeCamera.position.set(5, 5, 5);
+                        if (viewer.threeControls) {
+                            viewer.threeControls.target.set(0, 0, 0);
+                            viewer.threeControls.update();
+                        }
+                    }
+                });
+            });
+        });
+
+        // Initialize a 3D viewer for a model
+        function initViewer(containerId, model, statusBadge, errorMessage) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            // Create scene
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            
+            // Create camera
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(5, 5, 5);
+            container.threeCamera = camera;
+            
+            // Create renderer
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+            
+            // Create controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.autoRotate = globalAutoRotate;
+            controls.autoRotateSpeed = 2.0;
+            container.threeControls = controls;
+            
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            const backLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            backLight.position.set(-1, -1, -1);
+            scene.add(backLight);
+            
+            // Load the model
+            let mesh;
+            
+            if (model.type === 'stl') {
+                loadSTLModel(model, scene, statusBadge, errorMessage, camera, controls);
+            } else if (model.type === 'geometry') {
+                createGeometryModel(model, scene, statusBadge, camera, controls);
+            }
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Handle any model-specific animations
+                scene.traverse(function(object) {
+                    if (object instanceof THREE.Mesh) {
+                        // Check if this mesh has custom animation
+                        if (object.userData.animateRotation) {
+                            object.rotation.z += object.userData.rotationSpeed || 0.01;
+                        }
+                    }
+                });
+                
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+        }
+
+        // Load an STL model
+        function loadSTLModel(model, scene, statusBadge, errorMessage, camera, controls) {
+            const loader = new THREE.STLLoader();
+            
+            loader.load(
+                model.url,
+                function(geometry) {
+                    // Material options
+                    const materialOptions = {
+                        color: model.color,
+                        roughness: model.roughness || 0.5,
+                        metalness: model.metalness || 0.3,
+                        side: THREE.DoubleSide
+                    };
+                    
+                    // Add emissive if specified
+                    if (model.emissive) {
+                        materialOptions.emissive = new THREE.Color(model.emissive);
+                        materialOptions.emissiveIntensity = model.emissiveIntensity || 0.3;
+                    }
+                    
+                    const material = new THREE.MeshStandardMaterial(materialOptions);
+                    const mesh = new THREE.Mesh(geometry, material);
+                    
+                    // Center the model
+                    geometry.computeBoundingSphere();
+                    const center = geometry.boundingSphere.center;
+                    mesh.position.set(-center.x, -center.y, -center.z);
+                    
+                    // Scale the model
+                    geometry.computeBoundingBox();
+                    const box = geometry.boundingBox;
+                    const size = new THREE.Vector3();
+                    box.getSize(size);
+                    
+                    // Calculate scale factor - special cases handled based on model definition
+                    let scaleFactor;
+                    
+                    // Determine if this is a special model (Harry Potter or Deathly Hallows)
+                    const isHarryPotter = model.url.includes('harry_potter');
+                    const isDeathlyHallows = model.url.includes('Deathly_Hallows');
+                    
+                    // Apply custom settings from model definition
+                    if (isHarryPotter) {
+                        scaleFactor = 5 / Math.max(size.x, size.y, size.z);
+                    } else if (isDeathlyHallows) {
+                        scaleFactor = 4 / Math.max(size.x, size.y, size.z);
+                    } else {
+                        scaleFactor = 3 / Math.max(size.x, size.y, size.z);
+                    }
+                    
+                    // Apply scale
+                    mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                    
+                    // Apply custom rotation if specified in model definition
+                    if (model.customRotation) {
+                        mesh.rotation.set(
+                            model.customRotation[0] || 0,
+                            model.customRotation[1] || 0,
+                            model.customRotation[2] || 0
+                        );
+                    }
+                    
+                    // Apply animation setting if specified
+                    if (model.animate) {
+                        mesh.userData.animateRotation = true;
+                        mesh.userData.rotationSpeed = model.animationSpeed || 0.01;
+                    }
+                    
+                    // Add to scene
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    scene.add(mesh);
+                    
+                    // Update status
+                    statusBadge.textContent = 'Loaded';
+                    statusBadge.className = 'status-badge success';
+                    
+                    // Set camera to look at the model
+                    const boundingBox = new THREE.Box3().setFromObject(mesh);
+                    const modelCenter = boundingBox.getCenter(new THREE.Vector3());
+                    controls.target.copy(modelCenter);
+                    
+                    // Apply custom camera position if specified
+                    if (model.customCameraPosition) {
+                        camera.position.set(
+                            model.customCameraPosition[0] || 5,
+                            model.customCameraPosition[1] || 5,
+                            model.customCameraPosition[2] || 5
+                        );
+                    }
+                    
+                    // Apply camera constraints for better viewing
+                    if (isHarryPotter || isDeathlyHallows) {
+                        controls.minDistance = 2; // Allow closer zoom
+                        controls.maxDistance = 10; // Limit max zoom out
+                    }
+                    
+                    controls.update();
+                },
+                function(xhr) {
+                    // Progress
+                    if (xhr.lengthComputable) {
+                        const percent = (xhr.loaded / xhr.total) * 100;
+                        statusBadge.textContent = `${Math.round(percent)}%`;
+                    }
+                },
+                function(error) {
+                    // Error
+                    console.error('Error loading STL:', error);
+                    statusBadge.textContent = 'Failed';
+                    statusBadge.className = 'status-badge failed';
+                    errorMessage.style.display = 'block';
+                }
+            );
+        }
+
+        // Create a geometric model
+        function createGeometryModel(model, scene, statusBadge, camera, controls) {
+            let geometry;
+            
+            // Create geometry based on type
+            switch(model.geometryType) {
+                case 'sphere':
+                    geometry = new THREE.SphereGeometry(1.5, 32, 32);
+                    break;
+                case 'cube':
+                    geometry = new THREE.BoxGeometry(2, 2, 2);
+                    break;
+                case 'torus':
+                    geometry = new THREE.TorusGeometry(1.2, 0.5, 16, 32);
+                    break;
+                case 'torusKnot':
+                default:
+                    geometry = new THREE.TorusKnotGeometry(1.2, 0.4, 64, 16);
+                    break;
+            }
+            
+            // Create material
+            const material = new THREE.MeshStandardMaterial({
+                color: model.color,
+                roughness: model.roughness || 0.7,
+                metalness: model.metalness || 0.2,
+                side: THREE.DoubleSide
+            });
+            
+            // Create mesh
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            
+            // Update status
+            statusBadge.textContent = 'Loaded';
+            statusBadge.className = 'status-badge success';
+            
+            // Set camera to look at the model
+            controls.target.set(0, 0, 0);
+            controls.update();
+        }
+    </script>
+</body>
+</html> 
